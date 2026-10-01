@@ -1,0 +1,61 @@
+# Build outputs and machine-specific state
+**/build/
+.gradle/
+.kotlin/
+.idea/
+*.iml
+local.properties
+.externalNativeBuild/
+.cxx/
+/dist/
+/captures/
+.DS_Store
+Thumbs.db
+__pycache__/
+*.py[cod]
+
+# Credentials and signing material (never commit the production signing key)
+.env
+.env.*
+!.env.example
+*keystore*.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+google-services.json
+
+# Local operational data, exports and archives
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.nani
+*.tar
+*.zip
+*.apk
+*.aab
+*.hprof
+*.log
+
+# Private development evidence and historical working notes stay on this computer
+/.codex/
+/.agents/
+/.impeccable/
+/design-review/
+/Documentacao/
+/video/
+/brand/nani-launcher.png
+/*_db_extract*/
+/*.png
+/*.xml
+/*.csv
+/*.pdf
+/*.mp4
+/*.sha256
+
+# Keep the reproducible Gradle wrapper and Room schema history
+!gradle/wrapper/gradle-wrapper.jar

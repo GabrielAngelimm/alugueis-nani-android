@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">Aluguéis Nani</string>
+    <string name="receipts">Recebimentos</string>
+    <string name="monthly">Mensal</string>
+    <string name="check_statement">Conferir extrato</string>
+    <string name="payments">Pagamentos</string>
+    <string name="reminder">Lembrete</string>
+    <string name="contact">Contato</string>
+    <string name="registration">Cadastro</string>
+    <string name="contract">Contrato</string>
+    <string name="tenant">Inquilino</string>
+    <string name="unit">Unidade</string>
+    <string name="monthly_rent">Aluguel mensal</string>
+    <string name="due_date">Vencimento</string>
+    <string name="search_tenant">Buscar inquilino</string>
+    <string name="view_results">Ver resultados</string>
+    <string name="save">Salvar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="all">Todos</string>
+    <string name="pending">Pendentes</string>
+    <string name="paid">Pagos</string>
+    <string name="documents">Documentos</string>
+    <string name="rentals">Locações</string>
+    <string name="tenants">Inquilinos</string>
+    <string name="statement_identity">Identificação no extrato</string>
+    <string name="new_alias">Novo apelido</string>
+    <string name="add_alias">Adicionar apelido</string>
+    <string name="remove">Remover</string>
+    <string name="greeting_morning">Bom dia, Nani</string>
+    <string name="greeting_afternoon">Boa tarde, Nani</string>
+    <string name="greeting_evening">Boa noite, Nani</string>
+    <string name="month_overview">Visão do mês</string>
+    <string-array name="month_names">
+        <item>Janeiro</item><item>Fevereiro</item><item>Março</item><item>Abril</item>
+        <item>Maio</item><item>Junho</item><item>Julho</item><item>Agosto</item>
+        <item>Setembro</item><item>Outubro</item><item>Novembro</item><item>Dezembro</item>
+    </string-array>
+    <plurals name="tenant_count"><item quantity="one">%d inquilino</item><item quantity="other">%d inquilinos</item></plurals>
+</resources>
