@@ -57,6 +57,8 @@ adb -s emulator-5554 shell am instrument -w -r -e reviewFolder portfolio-review-
 
 Resultado final do runner: `OK (45 tests)`. O código de encerramento da instrumentação, isoladamente, não identifica aprovação; o resultado e eventuais falhas também foram conferidos. A primeira execução revelou um erro do novo leitor de schemas de teste, que exigia o campo opcional `indices`; ele foi corrigido e a suíte completa foi repetida.
 
+Na primeira execução remota, 43 dos 45 testes Android passaram. Dois testes de interface assumiam um viewport maior que o Pixel 2 do CI: o rodapé do histórico estava fora da primeira tela e o switch de multa precisava de rolagem antes do toque. Os testes passaram a rolar até esses controles, mantendo as asserções de visibilidade e de mudança de estado. Os dois cenários foram reproduzidos no emulador local com resolução 1080×1920 e densidade 420 dpi. A interface de produção foi preservada.
+
 ## Cenários cobertos
 
 - Regras de multa/juros, normalização de nomes, matching sem nomes vazios, parsing de moeda, CPF, telefone e extratos.

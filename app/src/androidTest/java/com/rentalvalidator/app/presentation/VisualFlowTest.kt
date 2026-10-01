@@ -185,13 +185,14 @@ class VisualFlowTest {
         shot("large-type-grid")
     }
 
-    @Test fun dashboardKeepsSummaryAndHistoryInTheFirstViewport() {
+    @Test fun dashboardShowsSummaryAndHistoryAndKeepsTotalsReachable() {
         launch()
         compose.waitUntil(10_000) { tenants.tenants.value.size == 3 }
         compose.onNodeWithText("Acompanhar recebimentos").assertIsDisplayed()
         compose.onNode(hasText("recebimentos pendentes", substring = true)).assertDoesNotExist()
         compose.onNodeWithText("Histórico de recebimentos").assertIsDisplayed()
-        compose.onNode(hasText("Total no período", substring = true)).assertIsDisplayed()
+        // The summary and history heading are visible first; smaller screens scroll to the footer.
+        compose.onNode(hasText("Total no período", substring = true)).performScrollTo().assertIsDisplayed()
         shot("dashboard-compact-overview")
     }
 
@@ -542,7 +543,7 @@ class VisualFlowTest {
             compose.onNodeWithText(com.rentalvalidator.app.util.CurrencyUtils.format(900.0)).assertExists()
             compose.onNodeWithText("Incluir multa na cobrança").assertExists()
             shot("statement-current-rent-optional-fee")
-            compose.onNode(isToggleable()).assertIsOff().performClick().assertIsOn()
+            compose.onNode(isToggleable()).performScrollTo().assertIsDisplayed().assertIsOff().performClick().assertIsOn()
             shot("statement-optional-fee-selected")
         } finally {
             file.delete()
