@@ -1,78 +1,39 @@
 package com.rentalvalidator.app.presentation.ui.tenants
 
-import androidx.compose.ui.res.stringResource
-import com.rentalvalidator.app.R
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.onLongClick
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rentalvalidator.app.domain.model.RentalUnit
 import com.rentalvalidator.app.domain.model.Tenant
 import com.rentalvalidator.app.presentation.components.*
-import com.rentalvalidator.app.presentation.theme.*
+import com.rentalvalidator.app.presentation.design.DialogText
+import com.rentalvalidator.app.presentation.design.NaniConfirmDialog
 import com.rentalvalidator.app.presentation.viewmodel.RentReminderViewModel
 import com.rentalvalidator.app.presentation.viewmodel.TenantsViewModel
 import com.rentalvalidator.app.presentation.viewmodel.UnitsViewModel
-import com.rentalvalidator.app.domain.model.CapacityKind
-import com.rentalvalidator.app.domain.model.OccupancyStatus
-import com.rentalvalidator.app.domain.model.OperationalStatus
-import com.rentalvalidator.app.domain.model.RentalUnit
-import com.rentalvalidator.app.domain.model.UnitType
-import com.rentalvalidator.app.util.CurrencyUtils
-import com.rentalvalidator.app.util.CpfUtils
-import com.rentalvalidator.app.util.PhoneUtils
-import com.rentalvalidator.app.util.WhatsAppUtils
-import java.time.YearMonth
-import java.time.format.TextStyle
-import java.util.Locale
 
 internal enum class TenantViewMode { UNITS, ALL }
+
+/** Which page of the rentals section is open; deeper pages slide in from the right. */
+private sealed interface RentalPane {
+    val depth: Int
+    data object Overview : RentalPane { override val depth = 0 }
+    data class UnitPage(val name: String) : RentalPane { override val depth = 1 }
+    data class TenantPage(val id: String) : RentalPane { override val depth = 2 }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,17 +46,16 @@ fun TenantsScreen(
     onNavigateToTenantPayments: ((String) -> Unit)? = null,
     reminderViewModel: RentReminderViewModel? = null
 ) {
-    val context = LocalContext.current
     val showSnackbar = rememberAppSnackbar()
     LaunchedEffect(viewModel) { viewModel.errors.collect { showSnackbar(it) } }
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val units by unitsViewModel.units.collectAsStateWithLifecycle()
     var mode by rememberSaveable { mutableStateOf(TenantViewMode.UNITS) }
     var query by remember { mutableStateOf("") }
-    
+
     // selectedUnitName keeps the selected unit text identifier to find the right RentalUnit
     var selectedUnitName by rememberSaveable { mutableStateOf<String?>(null) }
-    
+
     var detailTenantId by rememberSaveable { mutableStateOf<String?>(null) }
     val detailTenant = tenants.firstOrNull { it.id == detailTenantId }
     var showReminder by rememberSaveable { mutableStateOf(false) }
@@ -105,16 +65,17 @@ fun TenantsScreen(
     var showForm by remember { mutableStateOf(false) }
     var formViewOnly by remember { mutableStateOf(false) }
     var deleteTenant by remember { mutableStateOf<Tenant?>(null) }
-    
+
     var formUnit by remember { mutableStateOf<RentalUnit?>(null) }
     var formUnitInitialName by remember { mutableStateOf<String?>(null) }
     var showUnitForm by remember { mutableStateOf(false) }
-    
+
     var showFilters by remember { mutableStateOf(false) }
     var filterBank by remember { mutableStateOf<String?>(null) }
     var filterUnit by remember { mutableStateOf<String?>(null) }
     var filterDueDay by remember { mutableStateOf<Int?>(null) }
     var showUnitTenantPicker by remember { mutableStateOf(false) }
+    val overviewState = rememberLazyListState()
 
     val visibleTenants = tenants.filter { tenant ->
         (tenant.name.contains(query, true) || tenant.aliases.any { it.contains(query, true) }) &&
@@ -123,82 +84,96 @@ fun TenantsScreen(
             (filterDueDay == null || tenant.dueDay == filterDueDay)
     }
 
-    when {
-        detailTenant != null -> {
-            val tenant = detailTenant!!
-            val reminderVm = reminderViewModel ?: hiltViewModel<RentReminderViewModel>(key = "rent-reminder-${tenant.id}")
-            val reminderState by reminderVm.state.collectAsStateWithLifecycle()
-            LaunchedEffect(tenant.id) { reminderVm.load(tenant.id) }
-            TenantDetails(
-                tenant = tenant,
-                onBack = { detailTenantId = null },
-                onEdit = { formTenant = detailTenant; formViewOnly = false; showForm = true },
-                onDelete = { deleteTenant = detailTenant },
-                onPayments = { onNavigateToTenantPayments?.invoke(tenant.id) ?: onNavigateToPayments() },
-                onReminder = { showReminder = true },
-                onContact = { showContact = true },
-                reminderLeadHours = reminderState.reminder?.leadHours
-            )
-            if (showReminder) TenantReminderSheet(tenant, { showReminder = false }, vm = reminderVm)
-            if (showContact) TenantContactSheet(tenant, { showContact = false }, {
-                formTenant = tenant; formViewOnly = false; showForm = true
-            })
-        }
-        selectedUnitName != null -> {
-            // Find real unit or null if legacy
-            val realUnit = units.find { it.name == selectedUnitName }
-            UnitDetails(
-                unitName = selectedUnitName!!,
-                realUnit = realUnit,
-                tenants = tenants.filter { it.unit.ifBlank { "Geral" } == selectedUnitName },
-                onBack = { selectedUnitName = null },
-                onTenant = { detailTenantId = it.id },
-                onEdit = {
-                    val linkedTenants = tenants.filter { it.unit.ifBlank { "Geral" } == selectedUnitName }
-                    when (linkedTenants.size) {
-                        0 -> Unit
-                        1 -> {
-                            formTenant = linkedTenants.first()
-                            formInitialUnit = selectedUnitName
-                            formViewOnly = false
-                            showForm = true
-                        }
-                        else -> showUnitTenantPicker = true
-                    }
-                },
-                onAdd = {
-                    formTenant = null
-                    formInitialUnit = selectedUnitName
-                    formViewOnly = false
-                    showForm = true
-                },
-                onDeleteUnit = {
-                    realUnit?.let { deleting -> unitsViewModel.deleteUnit(deleting.id,
-                        onSuccess = { selectedUnitName = null }, onError = { showSnackbar(it) }) }
-                },
-                onEditUnit = {
-                    formUnit = realUnit
-                    formUnitInitialName = realUnit?.name ?: selectedUnitName
-                    showUnitForm = true
-                }
-            )
-        }
-        else -> TenantsOverview(
-            tenants = visibleTenants,
-            units = units,
-            mode = mode,
-            query = query,
-            hasFilters = filterBank != null || filterUnit != null || filterDueDay != null,
-            onQuery = { query = it },
-            onMode = { mode = it },
-            onUnit = { selectedUnitName = it },
-            onTenant = { detailTenantId = it.id },
-            onFilters = { showFilters = true },
-            onAdd = {
-                if(mode==TenantViewMode.UNITS) {formUnit=null;formUnitInitialName=null;showUnitForm=true}
-                else {formTenant=null;formInitialUnit=null;formViewOnly=false;showForm=true}
+    val pane: RentalPane = when {
+        detailTenant != null -> RentalPane.TenantPage(detailTenant.id)
+        selectedUnitName != null -> RentalPane.UnitPage(selectedUnitName!!)
+        else -> RentalPane.Overview
+    }
+
+    AnimatedContent(pane, Modifier.fillMaxSize(), label = "rentals page", transitionSpec = {
+        val forward = targetState.depth > initialState.depth
+        (slideInHorizontally(AppMotion.PageSlide) { if (forward) it / 5 else -it / 5 } + fadeIn(AppMotion.EnterFade)) togetherWith
+            (slideOutHorizontally(AppMotion.PageSlide) { if (forward) -it / 8 else it / 8 } + fadeOut(AppMotion.ExitFade))
+    }) { page ->
+        when (page) {
+            is RentalPane.TenantPage -> {
+                val tenant = tenants.firstOrNull { it.id == page.id } ?: return@AnimatedContent
+                val reminderVm = reminderViewModel ?: hiltViewModel<RentReminderViewModel>(key = "rent-reminder-${tenant.id}")
+                val reminderState by reminderVm.state.collectAsStateWithLifecycle()
+                LaunchedEffect(tenant.id) { reminderVm.load(tenant.id) }
+                TenantDetails(
+                    tenant = tenant,
+                    onBack = { detailTenantId = null },
+                    onEdit = { formTenant = tenant; formViewOnly = false; showForm = true },
+                    onDelete = { deleteTenant = tenant },
+                    onPayments = { onNavigateToTenantPayments?.invoke(tenant.id) ?: onNavigateToPayments() },
+                    onReminder = { showReminder = true },
+                    onContact = { showContact = true },
+                    reminderLeadHours = reminderState.reminder?.leadHours
+                )
+                if (showReminder) TenantReminderSheet(tenant, { showReminder = false }, vm = reminderVm)
+                if (showContact) TenantContactSheet(tenant, { showContact = false }, {
+                    formTenant = tenant; formViewOnly = false; showForm = true
+                })
             }
-        )
+            is RentalPane.UnitPage -> {
+                val unitName = page.name
+                // Find real unit or null if legacy
+                val realUnit = units.find { it.name == unitName }
+                val linkedTenants = tenants.filter { it.unit.ifBlank { "Geral" } == unitName }
+                UnitDetails(
+                    unitName = unitName,
+                    realUnit = realUnit,
+                    tenants = linkedTenants,
+                    onBack = { selectedUnitName = null },
+                    onTenant = { detailTenantId = it.id },
+                    onEdit = {
+                        when (linkedTenants.size) {
+                            0 -> Unit
+                            1 -> {
+                                formTenant = linkedTenants.first()
+                                formInitialUnit = unitName
+                                formViewOnly = false
+                                showForm = true
+                            }
+                            else -> showUnitTenantPicker = true
+                        }
+                    },
+                    onAdd = {
+                        formTenant = null
+                        formInitialUnit = unitName
+                        formViewOnly = false
+                        showForm = true
+                    },
+                    onDeleteUnit = {
+                        realUnit?.let { deleting -> unitsViewModel.deleteUnit(deleting.id,
+                            onSuccess = { selectedUnitName = null }, onError = { showSnackbar(it) }) }
+                    },
+                    onEditUnit = {
+                        formUnit = realUnit
+                        formUnitInitialName = realUnit?.name ?: unitName
+                        showUnitForm = true
+                    }
+                )
+            }
+            RentalPane.Overview -> TenantsOverview(
+                tenants = visibleTenants,
+                units = units,
+                mode = mode,
+                query = query,
+                hasFilters = filterBank != null || filterUnit != null || filterDueDay != null,
+                onQuery = { query = it },
+                onMode = { mode = it },
+                onUnit = { selectedUnitName = it },
+                onTenant = { detailTenantId = it.id },
+                onFilters = { showFilters = true },
+                onAdd = {
+                    if (mode == TenantViewMode.UNITS) { formUnit = null; formUnitInitialName = null; showUnitForm = true }
+                    else { formTenant = null; formInitialUnit = null; formViewOnly = false; showForm = true }
+                },
+                listState = overviewState
+            )
+        }
     }
 
     if (showForm) {
@@ -220,7 +195,7 @@ fun TenantsScreen(
             }
         )
     }
-    
+
     if (showUnitForm) {
         UnitFormBottomSheet(
             unit = formUnit,
@@ -246,9 +221,7 @@ fun TenantsScreen(
                         formUnit = null
                         formUnitInitialName = null
                     },
-                    onError = { message ->
-                        showSnackbar(message)
-                    }
+                    onError = { message -> showSnackbar(message) }
                 )
             },
             onDelete = { unitToDelete ->
@@ -262,9 +235,7 @@ fun TenantsScreen(
                         formUnit = null
                         formUnitInitialName = null
                     },
-                    onError = { message ->
-                        showSnackbar(message)
-                    }
+                    onError = { message -> showSnackbar(message) }
                 )
             }
         )
@@ -290,42 +261,14 @@ fun TenantsScreen(
         }
     }
     deleteTenant?.let { tenant ->
-        AlertDialog(
-            onDismissRequest = { deleteTenant = null },
-            icon = {
-                Box(
-                    Modifier
-                        .size(52.dp)
-                        .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(18.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Rounded.DeleteOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(25.dp)
-                    )
-                }
-            },
-            title = { Text("Excluir inquilino?") },
-            text = {
-                Text(
-                    "${tenant.name} e todos os pagamentos vinculados serão removidos permanentemente.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { viewModel.deleteTenant(tenant) { deleteTenant = null; detailTenantId = null } },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) { Text("Excluir") }
-            },
-            dismissButton = { TextButton(onClick = { deleteTenant = null }) { Text(stringResource(R.string.cancel)) } }
+        NaniConfirmDialog(
+            title = "Excluir inquilino?",
+            onDismiss = { deleteTenant = null },
+            confirmLabel = "Excluir",
+            onConfirm = { viewModel.deleteTenant(tenant) { deleteTenant = null; detailTenantId = null } },
+            text = { DialogText("${tenant.name} e todos os pagamentos vinculados serão removidos permanentemente.") },
+            destructive = true,
+            icon = Icons.Rounded.DeleteOutline
         )
     }
 }
-

@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import com.rentalvalidator.app.Screen
 import com.rentalvalidator.app.presentation.components.*
@@ -14,7 +15,7 @@ import com.rentalvalidator.app.presentation.theme.AppSize
 /** Owns adaptive navigation, insets and app-wide feedback, independently of destinations. */
 @Composable
 internal fun NaniScaffold(destination: NavDestination?, go: (Screen) -> Unit, content: @Composable () -> Unit) {
-    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val wide = LocalConfiguration.current.screenWidthDp.dp >= RailBreakpoint
     val showNavigation = destination?.route != "settings"
     val host = remember { SnackbarHostState() }
     AppSnackbarProvider(hostState = host) {

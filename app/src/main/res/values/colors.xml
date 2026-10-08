@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window colors mirror the Compose theme so launch and transitions never flash white. -->
+    <color name="nani_paper">#FFEDF1E9</color>
+    <color name="nani_pen">#FF2A43A6</color>
+</resources>

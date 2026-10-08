@@ -128,7 +128,8 @@ class VisualFlowTest {
                             Column(Modifier.fillMaxSize().padding(padding)) {
                               Box(Modifier.weight(1f)) {
                                 when (route.value) {
-                                    "dashboard" -> DashboardScreen(tenants, units, { route.value = "settings" }, { route.value = "contracts" },{route.value="grid"},{route.value="validator"},{route.value="tenants"})
+                                    "dashboard" -> DashboardScreen(tenants, units, { route.value = "settings" }, { route.value = "contracts" },{route.value="grid"},{route.value="validator"},{route.value="tenants"},
+                                        onNavigateToTenantPayments = { scopedTenant.value = it; route.value = "tenant-payments" })
                                     "tenants" -> TenantsScreen(tenants, units, {}, {}, { route.value = "grid" },
                                         onNavigateToTenantPayments = { scopedTenant.value=it;route.value="tenant-payments" },
                                         reminderViewModel = reminderVm)
@@ -194,6 +195,24 @@ class VisualFlowTest {
         // The summary and history heading are visible first; smaller screens scroll to the footer.
         compose.onNode(hasText("Total no período", substring = true)).performScrollTo().assertIsDisplayed()
         shot("dashboard-compact-overview")
+    }
+
+    @Test fun dashboardListsOpenRentsAndOpensTheTenantsPayments() {
+        launch()
+        compose.waitUntil(10_000) { tenants.tenants.value.size == 3 && tenants.recentPayments.value.isNotEmpty() }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Quem falta pagar"))
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Rafael Mendes"))
+        // Marina paid this month, so only the two open rents are listed.
+        compose.onNode(hasText("Rafael Mendes") and hasClickAction()).assertIsDisplayed()
+        compose.onNode(hasText("Ana Beatriz de Albuquerque") and hasClickAction()).assertExists()
+        compose.onNode(hasText("Marina Oliveira") and hasClickAction()).assertDoesNotExist()
+        shot("dashboard-open-rents")
+        compose.onNode(hasText("Rafael Mendes") and hasClickAction()).performClick()
+        compose.waitUntil(10_000) { route.value == "tenant-payments" && grid.state.value.items.size == 3 }
+        Assert.assertEquals("visual-1", scopedTenant.value)
+        compose.onNodeWithText("Ana Beatriz de Albuquerque").assertDoesNotExist()
+        compose.onNodeWithText("Pagamentos em ${java.time.LocalDate.now().year}").assertIsDisplayed()
+        shot("dashboard-open-rent-scoped-payments")
     }
 
     @Test fun tenantPaymentsStayScopedAcrossMonthsAndStatusChanges() {

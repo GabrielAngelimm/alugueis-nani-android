@@ -3,8 +3,8 @@ package com.rentalvalidator.app.util
 import androidx.compose.ui.graphics.Color
 import com.rentalvalidator.app.presentation.theme.SuccessGreen
 import com.rentalvalidator.app.presentation.theme.WarningAmber
-import com.rentalvalidator.app.presentation.theme.md_theme_dark_error
-import com.rentalvalidator.app.presentation.theme.md_theme_dark_onSurfaceVariant
+import com.rentalvalidator.app.presentation.theme.ErrorRed
+import com.rentalvalidator.app.presentation.theme.NeutralInk
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -29,7 +29,7 @@ fun getContractStatus(expirationDate: String, hasFile: Boolean): ContractStatusI
         return ContractStatusInfo(
             status = ContractStatus.SEM_CONTRATO,
             label = "Sem Contrato",
-            color = md_theme_dark_onSurfaceVariant
+            color = NeutralInk
         )
     }
 
@@ -55,7 +55,7 @@ fun getContractStatus(expirationDate: String, hasFile: Boolean): ContractStatusI
         daysUntilExpiration < 0 -> ContractStatusInfo(
             status = ContractStatus.VENCIDO,
             label = "Vencido",
-            color = md_theme_dark_error
+            color = ErrorRed
         )
         daysUntilExpiration <= 45 -> ContractStatusInfo(
             status = ContractStatus.VENCE_EM_BREVE,

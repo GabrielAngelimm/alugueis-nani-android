@@ -1,45 +1,72 @@
 package com.rentalvalidator.app
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import android.content.Context
+import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rentalvalidator.app.data.local.datastore.AppTheme
+import com.rentalvalidator.app.presentation.navigation.NaniApp
 import com.rentalvalidator.app.presentation.theme.RentalValidatorTheme
 import com.rentalvalidator.app.presentation.viewmodel.SettingsViewModel
-import com.rentalvalidator.app.presentation.navigation.NaniApp
+import com.rentalvalidator.app.reminders.RentReminderScheduler
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.Locale
 
 @AndroidEntryPoint
-class MainActivity:ComponentActivity() {
+class MainActivity : ComponentActivity() {
     private var openTenant by mutableStateOf<String?>(null)
     private var openPeriod by mutableStateOf<String?>(null)
-    private fun readReminder(intent: android.content.Intent) {
-        openTenant = intent.getStringExtra(com.rentalvalidator.app.reminders.RentReminderScheduler.EXTRA_TENANT)
-        openPeriod = intent.getStringExtra(com.rentalvalidator.app.reminders.RentReminderScheduler.EXTRA_PERIOD)
+
+    private fun readReminder(intent: Intent) {
+        openTenant = intent.getStringExtra(RentReminderScheduler.EXTRA_TENANT)
+        openPeriod = intent.getStringExtra(RentReminderScheduler.EXTRA_PERIOD)
     }
-    override fun onCreate(savedInstanceState:Bundle?) {
+
+    /**
+     * Every screen is written in Portuguese, so framework widgets (date picker, menus) follow
+     * pt-BR as well instead of mixing in the device language. Number and date formats in the
+     * app already use explicit pt-BR locales.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val configuration = Configuration(newBase.resources.configuration).apply { setLocale(Locale.forLanguageTag("pt-BR")) }
+        super.attachBaseContext(newBase.createConfigurationContext(configuration))
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if(savedInstanceState==null) readReminder(intent)
+        if (savedInstanceState == null) readReminder(intent)
         enableEdgeToEdge()
-        setContent { AppThemeRoot(openTenantId=openTenant,openPeriod=openPeriod,onOpenConsumed={
-            openTenant=null;openPeriod=null
-            intent.removeExtra(com.rentalvalidator.app.reminders.RentReminderScheduler.EXTRA_TENANT)
-            intent.removeExtra(com.rentalvalidator.app.reminders.RentReminderScheduler.EXTRA_PERIOD)
-        }) }
+        setContent {
+            AppThemeRoot(openTenantId = openTenant, openPeriod = openPeriod, onOpenConsumed = {
+                openTenant = null; openPeriod = null
+                intent.removeExtra(RentReminderScheduler.EXTRA_TENANT)
+                intent.removeExtra(RentReminderScheduler.EXTRA_PERIOD)
+            })
+        }
     }
-    override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); setIntent(intent); readReminder(intent) }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        readReminder(intent)
+    }
 }
+
 @Composable
-private fun AppThemeRoot(settings:SettingsViewModel=hiltViewModel(),openTenantId:String?=null,openPeriod:String?=null,onOpenConsumed:()->Unit={}) {
+private fun AppThemeRoot(
+    settings: SettingsViewModel = hiltViewModel(),
+    openTenantId: String? = null,
+    openPeriod: String? = null,
+    onOpenConsumed: () -> Unit = {}
+) {
     val mode by settings.themeModeFlow.collectAsStateWithLifecycle()
-    val dark=when(mode) { AppTheme.LIGHT->false;AppTheme.DARK->true;AppTheme.SYSTEM->isSystemInDarkTheme() }
-    RentalValidatorTheme(darkTheme=dark) { NaniApp(openTenantId,openPeriod,onOpenConsumed) }
+    val dark = when (mode) { AppTheme.LIGHT -> false; AppTheme.DARK -> true; AppTheme.SYSTEM -> isSystemInDarkTheme() }
+    RentalValidatorTheme(darkTheme = dark) { NaniApp(openTenantId, openPeriod, onOpenConsumed) }
 }
-@Composable fun MainApp() = NaniApp()

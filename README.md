@@ -12,9 +12,9 @@ A aplicação funciona localmente, sem conta, servidor ou conexão com a interne
 
 ## O que o aplicativo faz
 
-- **Início:** resumo da competência atual, ocupação, estados de pagamento e histórico estimado de recebimentos.
+- **Início:** resumo da competência atual, quem ainda falta pagar, estados de pagamento e histórico estimado de recebimentos.
 - **Locações:** cadastro de moradores e unidades, valor do aluguel, vencimento, nomes alternativos e informações de contato.
-- **Receber:** controle mensal com pagamentos pendentes, parciais e pagos; conferência de créditos extraídos de PDF ou CSV.
+- **Receber:** controle mensal com pagamentos pendentes, parciais e pagos, visão anual por morador; conferência de créditos extraídos de PDF ou CSV.
 - **Documentos:** anexos de contrato e vistoria, datas de referência e acesso aos arquivos pelo Android.
 - **Lembretes:** notificações locais por morador, com antecedência configurável.
 - **Backup:** exportação e restauração do formato completo `.nani`, incluindo documentos e configurações; compatibilidade com backups JSON antigos.
@@ -25,7 +25,7 @@ Não há cobrança automática nem integração bancária. A conferência de ext
 
 | Início | Locações | Receber |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/overview.png" width="230" alt="Resumo mensal com dados fictícios"> | <img src="docs/screenshots/rentals.png" width="230" alt="Cadastro de unidades fictícias"> | <img src="docs/screenshots/payments.png" width="230" alt="Controle de pagamentos fictícios"> |
+| <img src="docs/screenshots/overview.png" width="230" alt="Resumo mensal com dados fictícios"> | <img src="docs/screenshots/rentals.png" width="230" alt="Cadastro de inquilinos fictícios"> | <img src="docs/screenshots/payments.png" width="230" alt="Controle de pagamentos fictícios"> |
 
 Capturas de testes de interface com banco isolado, sem informações da república real.
 
@@ -34,7 +34,7 @@ Capturas de testes de interface com banco isolado, sem informações da repúbli
 | Área | Implementação |
 | --- | --- |
 | Linguagem e concorrência | Kotlin, coroutines, `Flow` e `StateFlow` |
-| Interface | Jetpack Compose, Material 3 e fontes locais |
+| Interface | Jetpack Compose e Material 3 com design system próprio ("Caderneta"), fontes locais e temas claro/escuro |
 | Organização | MVVM com camadas de apresentação, domínio e dados em um módulo |
 | Injeção | Hilt com KSP |
 | Persistência | Room e Preferences DataStore |

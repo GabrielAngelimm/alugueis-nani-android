@@ -7,7 +7,10 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material.icons.automirrored.outlined.Chat
+import com.rentalvalidator.app.presentation.theme.AppSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -47,31 +50,23 @@ internal fun TenantContactSheet(tenant: Tenant, onDismiss: () -> Unit, onEdit: (
             .onFailure { message("Não foi possível abrir o aplicativo de contato.") }
     }
     NaniSheet("Contato", onDismiss) {
-        NaniSheetTenantCard(
-            tenant.name,
-            PhoneUtils.formatPhone(tenant.phone).ifBlank { "Telefone não informado" }
-        )
+        NaniSheetTenantCard(tenant.name, PhoneUtils.formatPhone(tenant.phone).ifBlank { "Telefone não informado" })
         if (digits.isBlank()) {
+            Text("Cadastre um telefone para conversar pelo WhatsApp ou ligar.", style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             PrimaryButton("Adicionar telefone", { onDismiss(); onEdit() })
         } else {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
-            ) {
-                Column(Modifier.padding(horizontal = 16.dp)) {
-                    NaniActionRow("WhatsApp", null, Icons.Outlined.ChatBubbleOutline, {
-                        val phone = if (digits.length in 10..11) "55$digits" else digits
-                        val intent = Intent(Intent.ACTION_VIEW, "https://wa.me/$phone".toUri()).setPackage("com.whatsapp")
-                        runCatching { context.startActivity(intent) }.onSuccess { onDismiss() }
-                            .onFailure { open(Intent(Intent.ACTION_VIEW, "https://wa.me/$phone".toUri())) }
-                    })
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f))
-                    NaniActionRow("Ligar", null, Icons.Outlined.Phone, {
-                        open(Intent(Intent.ACTION_DIAL, "tel:$digits".toUri()))
-                    })
-                }
+            LedgerSheet(Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(AppSize.sheetRadius))) {
+                NaniActionRow("WhatsApp", "Abrir uma conversa", Icons.AutoMirrored.Outlined.Chat, {
+                    val phone = if (digits.length in 10..11) "55$digits" else digits
+                    val intent = Intent(Intent.ACTION_VIEW, "https://wa.me/$phone".toUri()).setPackage("com.whatsapp")
+                    runCatching { context.startActivity(intent) }.onSuccess { onDismiss() }
+                        .onFailure { open(Intent(Intent.ACTION_VIEW, "https://wa.me/$phone".toUri())) }
+                })
+                LedgerRule(Modifier.padding(start = 70.dp))
+                NaniActionRow("Ligar", "Abrir o discador com o número", Icons.Outlined.Phone, {
+                    open(Intent(Intent.ACTION_DIAL, "tel:$digits".toUri()))
+                })
             }
         }
     }
@@ -126,16 +121,20 @@ internal fun ReminderEditor(tenant: Tenant, state: ReminderUiState, allowed: Boo
     val occurrence = hours?.let { ReminderTime.next(tenant.dueDay, it, Instant.now(), ZoneId.systemDefault()) }
 
     NaniSheet("Lembrete de aluguel", { if (!state.busy) onDismiss() }, actions = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             PrimaryButton(if (state.busy) "Salvando…" else if (!allowed) "Permitir e agendar" else "Salvar lembrete",
                 { hours?.let(onSave) }, enabled = !state.loading && !state.busy && hours != null)
-            if (state.reminder != null) TextButton(onClick = onRemove, enabled = !state.busy, modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Remover lembrete") }
+            if (state.reminder != null) TextButton(onClick = onRemove, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                Text("Remover lembrete", style = MaterialTheme.typography.labelLarge)
+            }
         }
     }) {
-        NaniSheetTenantCard(tenant.name, "Vencimento · dia " + tenant.dueDay)
-        if (state.loading) CircularProgressIndicator() else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        NaniSheetTenantCard(tenant.name, "Vence todo dia ${tenant.dueDay}")
+        if (state.loading) Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(strokeWidth = 3.dp)
+        } else {
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Quando lembrar?", style = MaterialTheme.typography.titleMedium)
                 listOf(24 to "1 dia antes", 48 to "2 dias antes", 72 to "3 dias antes", 0 to "Personalizar")
                     .forEach { (value, title) ->
@@ -147,7 +146,7 @@ internal fun ReminderEditor(tenant: Tenant, state: ReminderUiState, allowed: Boo
                     NaniTabs(listOf("Horas", "Dias"), if (days) 1 else 0, {
                         if (!state.busy) { days = it == 1; amount = "1" }
                     })
-                    ModernTextField(amount, { if (!state.busy) amount = it.filter(Char::isDigit).take(3) },
+                    NaniTextField(amount, { if (!state.busy) amount = it.filter(Char::isDigit).take(3) },
                         "Antecedência em " + if (days) "dias" else "horas",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = hours == null,
@@ -155,38 +154,27 @@ internal fun ReminderEditor(tenant: Tenant, state: ReminderUiState, allowed: Boo
                 }
             }
             occurrence?.let {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .13f))
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(Icons.Outlined.NotificationsNone, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Próxima notificação", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                it.trigger.atZone(ZoneId.systemDefault()).format(
-                                    DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm", Locale.forLanguageTag("pt-BR"))
-                                ),
-                                style = MaterialTheme.typography.titleSmall
-                            )
+                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .55f)) {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Icon(Icons.Outlined.NotificationsActive, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Próxima notificação", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = .8f))
+                            Text(it.trigger.atZone(ZoneId.systemDefault()).format(
+                                DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm", Locale.forLanguageTag("pt-BR"))),
+                                style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                 }
             }
             if (!allowed && denied) {
-                Text("Ative as notificações para agendar o lembrete.",
+                Text("Ative as notificações do aplicativo para agendar o lembrete.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = onSettings) { Text("Configurar notificações") }
             }
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
         }
     }
 }
-

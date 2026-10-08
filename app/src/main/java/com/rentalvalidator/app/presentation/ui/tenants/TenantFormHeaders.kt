@@ -1,21 +1,28 @@
 package com.rentalvalidator.app.presentation.ui.tenants
-import androidx.compose.runtime.Composable
-import androidx.compose.material3.*
+
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import com.rentalvalidator.app.domain.model.Tenant
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.rentalvalidator.app.presentation.theme.AppSpace
 
+/** Header of a full-screen editor: closing discards, so it is an X rather than a back arrow. */
 @Composable
-internal fun UnitFormHeader(isNew:Boolean,unitName:String?,onDismiss:()->Unit) {
-    com.rentalvalidator.app.presentation.design.NaniHeader(if(isNew)"Nova unidade" else "Editar unidade",unitName) {
-        IconButton(onClick=onDismiss){Icon(Icons.Rounded.Close,"Fechar")}
+internal fun EditorHeader(title: String, subtitle: String?, onClose: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = AppSpace.page, top = 8.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Fechar") }
+        Column(Modifier.weight(1f).padding(start = 4.dp)) {
+            Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
+            if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
-
-@Composable
-internal fun TenantFormHeader(tenant:Tenant?,onDismiss:()->Unit) {
-    com.rentalvalidator.app.presentation.design.NaniHeader(if(tenant==null)"Novo inquilino" else "Editar inquilino",tenant?.name) {
-        IconButton(onClick=onDismiss){Icon(Icons.Rounded.Close,"Fechar")}
-    }
-}
-

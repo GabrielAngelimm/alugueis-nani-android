@@ -54,6 +54,15 @@ class CpfVisualTransformation : androidx.compose.ui.text.input.VisualTransformat
     }
 }
 
+/**
+ * Pre-fills a money field the way it is written in Brazil ("1250,00"). A stored value with more
+ * than two decimals is shown as-is, so opening and saving a form never rounds it silently.
+ */
+internal fun moneyInputText(value: Double): String {
+    val exact = runCatching { java.math.BigDecimal(value.toString()).stripTrailingZeros() }.getOrNull() ?: return value.toString()
+    return if (exact.scale() <= 2) exact.setScale(2).toPlainString().replace('.', ',') else value.toString()
+}
+
 fun formatPhoneForDB(digits: String): String {
     val value = digits.filter(Char::isDigit).take(11)
     return when (value.length) {
