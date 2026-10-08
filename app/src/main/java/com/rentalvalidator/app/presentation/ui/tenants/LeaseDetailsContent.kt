@@ -1,30 +1,36 @@
 package com.rentalvalidator.app.presentation.ui.tenants
-import androidx.compose.ui.res.stringResource
-import com.rentalvalidator.app.R
-import com.rentalvalidator.app.presentation.theme.AppSpace
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.*
-import androidx.compose.ui.semantics.*
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.rentalvalidator.app.R
 import com.rentalvalidator.app.domain.model.*
-import com.rentalvalidator.app.presentation.components.*
+import com.rentalvalidator.app.presentation.components.rememberAppSnackbar
 import com.rentalvalidator.app.presentation.design.*
+import com.rentalvalidator.app.presentation.theme.AppSize
+import com.rentalvalidator.app.presentation.theme.AppSpace
 import com.rentalvalidator.app.util.*
 
 @Composable
@@ -42,50 +48,48 @@ internal fun TenantDetails(
         }
     }
     BackHandler(onBack = onBack)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
         item {
             NaniHeader(stringResource(R.string.tenant), onBack = onBack) {
-                IconButton(onClick = onDelete) { Icon(Icons.Outlined.DeleteOutline, "Excluir inquilino", tint = MaterialTheme.colorScheme.error) }
-                IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, "Editar inquilino") }
+                IconButton(onClick = onDelete) { Icon(Icons.Rounded.DeleteOutline, "Excluir inquilino", tint = MaterialTheme.colorScheme.error) }
+                IconButton(onClick = onEdit) { Icon(Icons.Rounded.Edit, "Editar inquilino") }
             }
             NaniDetailHero(
                 title = tenant.name,
                 subtitle = tenant.unit.ifBlank { "Geral" },
                 firstLabel = stringResource(R.string.monthly_rent), firstValue = CurrencyUtils.format(tenant.amount),
                 secondLabel = stringResource(R.string.due_date), secondValue = "Dia ${tenant.dueDay}",
-                subtitleIcon = Icons.Outlined.Apartment
+                subtitleIcon = Icons.Rounded.MeetingRoom
             )
         }
         item {
-            NaniDetailCard(contentPadding = PaddingValues(vertical = 4.dp)) {
-                NaniDetailAction(stringResource(R.string.payments), "Acompanhar recebimentos", Icons.Outlined.AccountBalanceWallet, onPayments)
-                NaniDetailAction(
-                    stringResource(R.string.reminder),
-                    reminderTiming ?: "Agendar aviso antes do vencimento",
-                    Icons.Outlined.NotificationsNone,
-                    onReminder,
-                    status = if (reminderTiming != null) "Agendado" else null
-                )
+            NaniDetailCard(contentPadding = PaddingValues(0.dp)) {
+                NaniDetailAction(stringResource(R.string.payments), "Ver e atualizar os meses deste inquilino", Icons.Rounded.Payments, onPayments)
+                NaniDetailAction(stringResource(R.string.reminder), reminderTiming ?: "Receber um aviso antes do vencimento",
+                    Icons.Rounded.NotificationsNone, onReminder, status = if (reminderTiming != null) "Agendado" else null)
                 NaniDetailAction(stringResource(R.string.contact), PhoneUtils.formatPhone(tenant.phone).ifBlank { "Telefone não informado" },
-                    Icons.Outlined.Phone, onContact, divider = false)
+                    Icons.Rounded.Phone, onContact, divider = false)
             }
-            Spacer(Modifier.height(20.dp))
         }
         item {
-            NaniDetailCard(stringResource(R.string.registration), headerIcon = Icons.Outlined.Badge) {
+            Spacer(Modifier.height(AppSpace.section))
+            NaniDetailCard(stringResource(R.string.registration)) {
                 CopyableFact("Telefone", PhoneUtils.formatPhone(tenant.phone).ifBlank { "Não informado" })
                 CopyableFact("CPF", CpfUtils.format(tenant.cpf).ifBlank { "Não informado" })
                 CopyableFact("Banco", tenant.bank.ifBlank { "Não informado" })
                 CopyableFact("Apelidos", tenant.aliases.joinToString().ifBlank { "Não informado" })
                 CopyableFact("Nome no WhatsApp", tenant.whatsappName.ifBlank { "Não informado" }, divider = false)
             }
-            Spacer(Modifier.height(20.dp))
-            NaniDetailCard(stringResource(R.string.contract), headerIcon = Icons.Outlined.Description) {
+            Text("Toque e segure um dado para copiá-lo.", Modifier.padding(horizontal = AppSpace.page + 4.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Spacer(Modifier.height(AppSpace.large))
+            NaniDetailCard(stringResource(R.string.contract)) {
                 CopyableFact("Vencimento do contrato", displayDate(tenant.contractExpirationDate, "Não informado"))
                 CopyableFact(stringResource(R.string.contract), if (tenant.contractPath.isBlank()) "Não anexado" else "Anexado", copyEnabled = false)
                 CopyableFact("Vistoria", if (tenant.inspectionPath.isBlank()) "Não anexada" else "Anexada", divider = false, copyEnabled = false)
             }
-
         }
     }
 }
@@ -96,51 +100,65 @@ internal fun UnitDetails(
     onTenant: (Tenant) -> Unit, onEdit: () -> Unit, onAdd: () -> Unit, onEditUnit: () -> Unit, onDeleteUnit: () -> Unit
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
-    if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false },
-        title = { Text("Excluir unidade?") },
-        text = { Text(if (tenants.isNotEmpty()) "Transfira ou remova os inquilinos vinculados antes de excluir esta unidade." else "A unidade $unitName será excluída permanentemente.") },
-        confirmButton = { TextButton(onClick = { confirmDelete = false; if (tenants.isEmpty()) onDeleteUnit() }) { Text(if (tenants.isEmpty()) "Excluir" else "Entendi") } },
-        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } })
+    if (confirmDelete) NaniConfirmDialog(
+        title = "Excluir unidade?",
+        onDismiss = { confirmDelete = false },
+        confirmLabel = if (tenants.isEmpty()) "Excluir" else "Entendi",
+        onConfirm = { confirmDelete = false; if (tenants.isEmpty()) onDeleteUnit() },
+        text = {
+            DialogText(if (tenants.isNotEmpty()) "Transfira ou remova os inquilinos vinculados antes de excluir esta unidade."
+                else "A unidade $unitName será excluída permanentemente.")
+        },
+        dismissLabel = if (tenants.isEmpty()) "Cancelar" else null,
+        destructive = tenants.isEmpty(),
+        icon = Icons.Rounded.DeleteOutline
+    )
     BackHandler(onBack = onBack)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+    val capacity = realUnit?.let { "${it.capacity} ${it.capacityKind.noun(it.capacity)}" } ?: "Não informada"
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
         item {
             NaniHeader(stringResource(R.string.unit), onBack = onBack) {
-                if (realUnit != null) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.DeleteOutline, "Excluir unidade", tint = MaterialTheme.colorScheme.error) }
-                IconButton(onClick = onEditUnit) { Icon(Icons.Outlined.Edit, "Editar detalhes da unidade") }
+                if (realUnit != null) IconButton(onClick = { confirmDelete = true }) {
+                    Icon(Icons.Rounded.DeleteOutline, "Excluir unidade", tint = MaterialTheme.colorScheme.error)
+                }
+                IconButton(onClick = onEditUnit) { Icon(Icons.Rounded.Edit, "Editar detalhes da unidade") }
             }
             NaniDetailHero(
                 title = unitName,
-                subtitle = realUnit?.location?.ifBlank { "Localização não informada" } ?: "Agrupamento de inquilinos",
+                subtitle = realUnit?.location?.ifBlank { "Endereço não informado" } ?: "Agrupamento de inquilinos",
                 firstLabel = stringResource(R.string.tenants), firstValue = tenants.size.toString(),
-                secondLabel = "Capacidade", secondValue = realUnit?.let {
-                    "${it.capacity} ${when (it.capacityKind) {
-                        CapacityKind.TENANTS -> if (it.capacity == 1) "inquilino" else "inquilinos"
-                        CapacityKind.ROOMS -> if (it.capacity == 1) "quarto" else "quartos"
-                        CapacityKind.SPACES -> if (it.capacity == 1) "vaga" else "vagas"
-                    }}"
-                } ?: "Não informada",
+                secondLabel = "Capacidade", secondValue = capacity,
+                status = realUnit?.let { unit -> {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OccupancyMeter(unit.tenantCount, unit.capacity)
+                        StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind())
+                    }
+                } },
                 compact = true,
-                subtitleIcon = Icons.Outlined.LocationOn,
+                subtitleIcon = Icons.Rounded.LocationOn,
                 identity = DetailIdentity.UNIT
             )
         }
         item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.tenants), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                FilledTonalIconButton(onClick = onAdd) { Icon(Icons.Outlined.PersonAdd, "Adicionar inquilino") }
+            SectionTitle(stringResource(R.string.tenants), Modifier.padding(bottom = 8.dp)) {
+                FilledTonalIconButton(onClick = onAdd, shape = RoundedCornerShape(AppSize.controlRadius)) {
+                    Icon(Icons.Rounded.PersonAdd, "Adicionar inquilino")
+                }
             }
             if (tenants.isEmpty()) {
-                Column(Modifier.padding(horizontal = AppSpace.page, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Nenhum inquilino nesta unidade.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = onAdd) { Text("Adicionar inquilino") }
+                LedgerSheet(Modifier.padding(horizontal = AppSpace.page), contentPadding = PaddingValues(20.dp)) {
+                    Text("Nenhum inquilino nesta unidade.", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = onAdd, contentPadding = PaddingValues(0.dp)) { Text("Adicionar inquilino") }
                 }
             }
         }
-        items(tenants, key = { it.id }) { TenantRecord(it, onTenant) }
+        itemsIndexed(tenants, key = { _, tenant -> tenant.id }) { index, tenant ->
+            TenantRecord(tenant, onTenant, ledgerPosition(index, tenants.size), showUnit = false)
+        }
         item {
-            Spacer(Modifier.height(24.dp))
-            NaniDetailCard("Sobre a unidade", headerIcon = Icons.Outlined.HomeWork) {
+            Spacer(Modifier.height(AppSpace.section))
+            NaniDetailCard("Sobre a unidade") {
                 CopyableFact("Endereço", realUnit?.location?.ifBlank { "Não informado" } ?: "Não informado")
                 CopyableFact("Ocupação", realUnit?.occupancyStatus?.displayName() ?: "Não informada", copyEnabled = false)
                 CopyableFact("Tipo", realUnit?.type?.displayName() ?: "Não informado")
@@ -152,19 +170,31 @@ internal fun UnitDetails(
                 })
                 CopyableFact("Condomínio", realUnit?.condominiumFee?.let { CurrencyUtils.format(it) } ?: "Não informado")
                 CopyableFact("Observações", realUnit?.notes?.ifBlank { "Não informado" } ?: "Não informado")
-                CopyableFact("Documentos", "${tenants.count { it.contractPath.isNotBlank() }} contratos · ${tenants.count { it.inspectionPath.isNotBlank() }} vistorias", divider = false)
+                val contracts = tenants.count { it.contractPath.isNotBlank() }
+                val inspections = tenants.count { it.inspectionPath.isNotBlank() }
+                CopyableFact("Documentos", "${contracts} ${if (contracts == 1) "contrato" else "contratos"} e $inspections ${if (inspections == 1) "vistoria" else "vistorias"}",
+                    divider = false)
             }
         }
     }
 }
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
-internal fun UnitTenantPicker(unit:String,tenants:List<Tenant>,onDismiss:()->Unit,onTenant:(Tenant)->Unit) {
-    ModalBottomSheet(onDismissRequest=onDismiss,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)) {
-        Text("Editar inquilino",Modifier.padding(horizontal=AppSpace.page),style=MaterialTheme.typography.titleLarge)
-        LazyColumn {items(tenants,key={it.id}) {TenantRecord(it,onTenant)}}
+internal fun UnitTenantPicker(unit: String, tenants: List<Tenant>, onDismiss: () -> Unit, onTenant: (Tenant) -> Unit) {
+    NaniSheet("Editar inquilino", onDismiss) {
+        Text("Escolha quem editar em $unit.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LedgerSheet {
+            tenants.forEachIndexed { index, tenant ->
+                if (index > 0) LedgerRule(Modifier.padding(start = 70.dp))
+                TenantLine(tenant, { onTenant(tenant) }, showUnit = false)
+            }
+        }
     }
 }
+
+private val EmptyValues = setOf("Não informado", "Não informada", "Não anexado", "Não anexada")
+
+/** A fact on a detail page. Long-press copies it, with a confirmation and haptic feedback. */
 @Composable
 private fun CopyableFact(label: String, value: String, divider: Boolean = true, copyEnabled: Boolean = true) {
     val context = LocalContext.current
@@ -181,40 +211,28 @@ private fun CopyableFact(label: String, value: String, divider: Boolean = true, 
     }
     val copyModifier = if (canCopy) {
         Modifier
-            .pointerInput(label, value) {
-                detectTapGestures(onLongPress = { copyValue() })
-            }
-            .semantics {
-                onLongClick(label = "Copiar $label") {
-                    copyValue()
-                    true
-                }
-            }
-    } else {
-        Modifier
-    }
+            .pointerInput(label, value) { detectTapGestures(onLongPress = { copyValue() }) }
+            .semantics { onLongClick(label = "Copiar $label") { copyValue(); true } }
+    } else Modifier
 
     val colors = MaterialTheme.colorScheme
-    val valueColor = if (value == "Não informado" || value == "Não informada" || value == "Não anexado" || value == "Não anexada") {
-        colors.onSurfaceVariant
-    } else colors.onSurface
+    val valueColor = if (value in EmptyValues) colors.onSurfaceVariant else colors.onSurface
     val fontScale = LocalDensity.current.fontScale
-    BoxWithConstraints(copyModifier.fillMaxWidth().padding(vertical = 15.dp)) {
+    BoxWithConstraints(copyModifier.fillMaxWidth().padding(vertical = 14.dp)) {
         // Long content and enlarged type keep the full width; values are never truncated.
         val stacked = maxWidth < 290.dp || fontScale > 1.15f || value.length > 32 || label.length > 22
+        val valueStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (value in EmptyValues) FontWeight.Normal else FontWeight.SemiBold)
         if (stacked) {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(label, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                Text(value, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = valueColor)
+                Text(value, style = valueStyle, color = valueColor)
             }
         } else {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(label, Modifier.weight(.42f), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                Text(value, Modifier.weight(.58f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = valueColor, textAlign = TextAlign.End)
+                Text(value, Modifier.weight(.58f), style = valueStyle, color = valueColor, textAlign = TextAlign.End)
             }
         }
     }
-    if (divider) HorizontalDivider(color = colors.outlineVariant.copy(alpha = .35f))
+    if (divider) LedgerRule()
 }

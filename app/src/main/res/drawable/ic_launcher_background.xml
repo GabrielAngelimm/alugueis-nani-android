@@ -2,9 +2,9 @@
     <path android:pathData="M0,0H108V108H0Z">
         <aapt:attr name="android:fillColor">
             <gradient android:startX="0" android:startY="0" android:endX="108" android:endY="108" android:type="linear">
-                <item android:offset="0" android:color="#6870D9" />
-                <item android:offset="0.55" android:color="#4851AF" />
-                <item android:offset="1" android:color="#303771" />
+                <item android:offset="0" android:color="#3B57C4" />
+                <item android:offset="0.55" android:color="#26398A" />
+                <item android:offset="1" android:color="#172560" />
             </gradient>
         </aapt:attr>
     </path>

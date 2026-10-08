@@ -1,158 +1,124 @@
 package com.rentalvalidator.app.presentation.theme
 
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Nani: neutral mineral surfaces, indigo actions, independent semantic states.
-val BrandPrimary = Color(0xFF525DD8)
-val BrandPrimaryDark = Color(0xFF343D9B)
-val BrandSoft = Color(0xFFECEEFC)
-val BrandSoftDark = Color(0xFF2D3353)
+/*
+ * Caderneta: the landlady's account book. Ledger-sage paper, ballpoint ink for
+ * actions, account-book green for paid rent, rubber-stamp red for overdue and
+ * highlighter yellow for what is still open. Screens pick a role, never a hex.
+ */
 
-// Data accents. They are intentionally softened for fills and reserved for
-// related information, so a varied dashboard still reads as one product.
-val AccentSky = Color(0xFF287F9A)
-val AccentSkySoft = Color(0xFFE7F3F8)
-val AccentViolet = Color(0xFF525DD8)
-val AccentVioletSoft = Color(0xFFECEEFC)
-val AccentMint = Color(0xFF347A61)
-val AccentMintSoft = Color(0xFFEAF4EF)
-val AccentAmber = Color(0xFF925127)
-val AccentAmberSoft = Color(0xFFFAEBDC)
-val AccentCoral = Color(0xFFA85F5A)
-val AccentCoralSoft = Color(0xFFF8ECEB)
+// Paper and ink, light.
+internal val Paper = Color(0xFFEDF1E9)
+internal val Sheet = Color(0xFFFBFCF9)
+internal val SheetWhite = Color(0xFFFFFFFF)
+internal val PaperLow = Color(0xFFF4F7F1)
+internal val PaperDeep = Color(0xFFE4EAE0)
+internal val PaperDeeper = Color(0xFFDAE1D5)
+internal val Rule = Color(0xFFD3DBCF)
+internal val RuleStrong = Color(0xFF7D887E)
+internal val Ink = Color(0xFF1B2330)
+internal val InkMuted = Color(0xFF566170)
+internal val Pen = Color(0xFF2A43A6)
+internal val PenSoft = Color(0xFFE1E7FA)
+internal val PenDeep = Color(0xFF172869)
+internal val Stamp = Color(0xFFB0372D)
+internal val StampSoft = Color(0xFFFAE2DD)
+internal val StampDeep = Color(0xFF6B1912)
 
-// Mineral canvas with opaque white content surfaces and restrained tonal depth.
-val AppBackground = Color(0xFFF7F8FA)
-val AppSurface = Color(0xFFFFFFFF)
-val AppSurfaceElevated = Color(0xFFFFFFFF)
-val AppSurfaceMuted = Color(0xFFEDF0F4)
-// Tenant records use a slightly denser surface and a tonal header so every
-// person reads as one deliberate object instead of blending into the list.
-val TenantCardSurface = Color(0xFFFFFFFF)
-// Deliberately just one quiet step darker than the reference header so the
-// tenant identity remains slightly more prominent without becoming a band.
-val TenantCardHeaderSurface = Color(0xFFF7F6F3)
-val TenantCardBorder = Color(0xFFDCE0E7)
-val TenantCardDivider = Color(0xFFE5E8EE)
-val AppBorder = Color(0xFFDCE0E7)
-val AppControlBorder = Color(0xFF858D9B)
-val AppSearchField = Color(0xFFFFFFFF)
-val AppInputField = Color(0xFFF0F2F6)
-val AppTextPrimary = Color(0xFF202631)
-val AppTextSecondary = Color(0xFF606775)
-val AppTextTertiary = Color(0xFF697181)
-// Icons describe content before they describe an action. Keep their resting
-// state neutral; reserve blue for primary interaction and selected controls.
-val AppIconNeutral = Color(0xFF606775)
+// Paper and ink, night.
+internal val PaperNight = Color(0xFF10151D)
+internal val SheetNight = Color(0xFF171E28)
+internal val SheetNightLowest = Color(0xFF0C1016)
+internal val SheetNightLow = Color(0xFF141A23)
+internal val SheetNightContainer = Color(0xFF1C2430)
+internal val SheetNightHigh = Color(0xFF232C39)
+internal val SheetNightHighest = Color(0xFF2B3544)
+internal val RuleNight = Color(0xFF2B3442)
+internal val RuleStrongNight = Color(0xFF717C8B)
+internal val InkNight = Color(0xFFE8ECF1)
+internal val InkMutedNight = Color(0xFFA6AFBD)
+internal val PenNight = Color(0xFFB0C0FF)
+internal val PenSoftNight = Color(0xFF27357A)
+internal val PenDeepNight = Color(0xFF0F1E5C)
+internal val StampNight = Color(0xFFFF9E91)
+internal val StampSoftNight = Color(0xFF4C1E19)
 
-// Semantic roles. Screens should choose a role, not a decorative color.
-val ActionPrimary = BrandPrimary
-val SelectionActive = BrandPrimary
-val SemanticSuccess = AccentMint
-val SemanticAttention = AccentAmber
-val SemanticAlert = AccentCoral
-val SemanticInformation = AccentViolet
-val TenantIdentityBlue = Color(0xFF5D78B6)
-val TenantIdentityGreen = Color(0xFF4B8A78)
-val TenantIdentityCoral = Color(0xFFA76D72)
-val TenantIdentityAmber = Color(0xFF9A784A)
-
-// Achromatic depth: no colored light in shadows.
-val ShadowAmbient = Color.Black
-val ShadowSpot = Color.Black
-val FloatingGlass = Color(0xF2FFFFFF)
-
-// Dark surfaces
-val AppBackgroundDark = Color(0xFF111317)
-val AppSurfaceDark = Color(0xFF1B1E24)
-val AppSurfaceMutedDark = Color(0xFF272B34)
-val AppSurfaceElevatedDark = Color(0xFF323743)
-val AppBorderDark = Color(0xFF565E6D)
-val AppSearchFieldDark = Color(0xFF272B34)
-val AppInputFieldDark = Color(0xFF242830)
-val AppTextPrimaryDark = Color(0xFFF2F3F7)
-val AppTextSecondaryDark = Color(0xFFB4BAC8)
-val TenantCardSurfaceDark = Color(0xFF1B1E24)
-val TenantCardHeaderSurfaceDark = Color(0xFF242830)
-val TenantCardBorderDark = Color(0xFF565E6D)
-val TenantCardDividerDark = Color(0xFF323743)
-
-// Semantic colors
-val SuccessGreen = AccentMint
-val SuccessSoft = AccentMintSoft
-val WarningAmber = AccentAmber
-val WarningSoft = AccentAmberSoft
-val StatusOrange = WarningAmber
-val ErrorRed = Color(0xFFB64440)
-val ErrorSoft = Color(0xFFFFEEEE)
-val InfoBlue = AccentViolet
-val InfoSoft = AccentVioletSoft
-
-// Compatibility aliases retained while legacy screens are migrated.
-val md_theme_light_background = AppBackground
-val md_theme_light_surface = AppSurface
-val md_theme_light_surfaceVariant = AppSurfaceMuted
-val md_theme_light_primary = BrandPrimary
-val md_theme_light_onPrimary = Color.White
-val md_theme_light_primaryContainer = BrandSoft
-val md_theme_light_onPrimaryContainer = BrandPrimaryDark
-val md_theme_light_secondary = AppTextSecondary
-val md_theme_light_onSecondary = Color.White
-val md_theme_light_secondaryContainer = AppSurfaceMuted
-val md_theme_light_onSecondaryContainer = AppTextPrimary
-val md_theme_light_error = ErrorRed
-val md_theme_light_errorContainer = ErrorSoft
-val md_theme_light_onError = Color.White
-val md_theme_light_onErrorContainer = ErrorRed
-val md_theme_light_onBackground = AppTextPrimary
-val md_theme_light_onSurface = AppTextPrimary
-val md_theme_light_onSurfaceVariant = AppTextSecondary
-val md_theme_light_outline = AppBorder
-
-val md_theme_dark_background = AppBackgroundDark
-val md_theme_dark_surface = AppSurfaceDark
-val md_theme_dark_surfaceVariant = AppSurfaceMutedDark
-val md_theme_dark_primary = Color(0xFFA7AFFA)
-val md_theme_dark_onPrimary = Color(0xFF20274D)
-val md_theme_dark_primaryContainer = BrandSoftDark
-val md_theme_dark_onPrimaryContainer = Color(0xFFE3E6FF)
-val md_theme_dark_secondary = AppTextSecondaryDark
-val md_theme_dark_onSecondary = AppTextPrimary
-val md_theme_dark_secondaryContainer = AppSurfaceMutedDark
-val md_theme_dark_onSecondaryContainer = AppTextPrimaryDark
-val md_theme_dark_error = Color(0xFFFF8B83)
-val md_theme_dark_errorContainer = Color(0xFF5B2928)
-val md_theme_dark_onError = Color(0xFF35100F)
-val md_theme_dark_onErrorContainer = Color(0xFFFFDAD5)
-val md_theme_dark_onBackground = AppTextPrimaryDark
-val md_theme_dark_onSurface = AppTextPrimaryDark
-val md_theme_dark_onSurfaceVariant = AppTextSecondaryDark
-val md_theme_dark_outline = AppBorderDark
-
-val GlobalBackgroundBrush = Brush.verticalGradient(listOf(AppBackground, AppBackground))
-val GradientBlue = listOf(BrandPrimary, Color(0xFF26B8E8))
-val UnitHeroGradient = listOf(
-    Color(0xFFFAFBFF),
-    Color(0xFFF4F6FF),
-    Color(0xFFF0F4FA)
+/** Colors that Material's scheme has no role for: payment marks, plaques and charts. */
+@Immutable
+data class NaniColors(
+    val paid: StatusTone,
+    val pending: StatusTone,
+    val review: StatusTone,
+    val overdue: StatusTone,
+    val neutral: StatusTone,
+    val plaque: Color,
+    val onPlaque: Color,
+    /** Fill of the single strongest action. At night it stays saturated so it never reads as disabled. */
+    val action: Color,
+    val onAction: Color,
+    val rule: Color,
+    val track: Color,
+    val monograms: List<Pair<Color, Color>>,
+    val isDark: Boolean
 )
-val GradientTeal = listOf(InfoBlue, Color(0xFF8FA7F0))
-val GradientLavender = listOf(InfoBlue, BrandPrimary)
-val GradientAmber = listOf(WarningAmber, Color(0xFFFFB940))
-val GradientCardSurface = listOf(AppSurface, AppSurface)
-val GradientVioletBlue = GradientBlue
-val GradientPurpleCyan = GradientBlue
-val GradientPinkPurple = GradientTeal
-val GradientDeepPurple = GradientLavender
-val GradientCyan = GradientTeal
 
-val LightBlueAccent = BrandPrimary
-val InfoCyan = InfoBlue
-val GlowPrimary = BrandSoft
-val GlowCyan = InfoSoft
-val GlowPurple = BrandSoft
-val GlassSurface = AppSurface
-val GlassBorder = AppBorder
-val GlassHighlight = Color.White
+/** A status mark: [ink] for text and strokes, [fill] for its background, [onFill] for text on that fill. */
+@Immutable
+data class StatusTone(val ink: Color, val fill: Color, val onFill: Color)
 
+internal val LightNaniColors = NaniColors(
+    paid = StatusTone(Color(0xFF2B6A4B), Color(0xFFDBEEE1), Color(0xFF17442E)),
+    pending = StatusTone(Color(0xFF8A5800), Color(0xFFFBE8A8), Color(0xFF573700)),
+    review = StatusTone(Pen, PenSoft, PenDeep),
+    overdue = StatusTone(Stamp, StampSoft, StampDeep),
+    neutral = StatusTone(InkMuted, PaperDeep, Ink),
+    plaque = Color(0xFF233886),
+    onPlaque = Color(0xFFF4F6FF),
+    action = Pen,
+    onAction = Color.White,
+    rule = Rule,
+    track = PaperDeeper,
+    monograms = listOf(
+        Color(0xFFD9E8DC) to Color(0xFF285640),
+        Color(0xFFDDE3F6) to Color(0xFF283C8A),
+        Color(0xFFEFE3CF) to Color(0xFF6B4A17),
+        Color(0xFFE9DCEA) to Color(0xFF633A60),
+        Color(0xFFD7EBF0) to Color(0xFF1D5567),
+        Color(0xFFE6E8D2) to Color(0xFF4F5419)
+    ),
+    isDark = false
+)
+
+internal val DarkNaniColors = NaniColors(
+    paid = StatusTone(Color(0xFF8AD4AA), Color(0xFF173728), Color(0xFFC0EBD1)),
+    pending = StatusTone(Color(0xFFF0C766), Color(0xFF3A3013), Color(0xFFFBE3A5)),
+    review = StatusTone(PenNight, PenSoftNight, Color(0xFFDDE4FF)),
+    overdue = StatusTone(StampNight, StampSoftNight, Color(0xFFFFDAD4)),
+    neutral = StatusTone(InkMutedNight, SheetNightHigh, InkNight),
+    plaque = Color(0xFF3A50A8),
+    onPlaque = Color(0xFFF4F6FF),
+    action = Color(0xFF4460D6),
+    onAction = Color.White,
+    rule = RuleNight,
+    track = SheetNightHighest,
+    monograms = listOf(
+        Color(0xFF1E3428) to Color(0xFFB4DCC2),
+        Color(0xFF222C4F) to Color(0xFFC3CFFA),
+        Color(0xFF392D1B) to Color(0xFFEBCF9F),
+        Color(0xFF35233A) to Color(0xFFE2C1E2),
+        Color(0xFF17323A) to Color(0xFFAEDCE8),
+        Color(0xFF2E301B) to Color(0xFFD9DCA6)
+    ),
+    isDark = true
+)
+
+val LocalNaniColors = staticCompositionLocalOf { LightNaniColors }
+
+// Stable references kept for non-UI callers (ContractStatusInfo carries a color).
+val SuccessGreen = LightNaniColors.paid.ink
+val WarningAmber = LightNaniColors.pending.ink
+val ErrorRed = Stamp
+val NeutralInk = InkMuted

@@ -1,5 +1,22 @@
 # Validação da revisão
 
+## Redesign da interface (7 de outubro de 2026)
+
+A camada de apresentação foi reconstruída com o design system "Caderneta" ([DESIGN.md](../DESIGN.md)). Banco, repositórios, backups, regras de conferência, lembretes e integrações não foram alterados; o ViewModel mensal passou apenas a expor, para leitura, os estados do ano já carregados.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest --rerun-tasks` | **36 testes** (35 anteriores e 1 novo para o preenchimento de valores), sem falhas |
+| `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest` | Compilados |
+| Testes instrumentados (emulador API 37, 1280×2856) | **46 testes**, todos passaram (45 anteriores e 1 novo para a lista "Quem falta pagar") |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** de SDK, dependências e código transitivo da revisão anterior |
+| Contraste | Pares de texto do tema claro e escuro acima de 4,5:1; linhas de campo acima de 3:1 |
+| Inspeção visual | Capturas dos testes em tema claro, escuro e texto ampliado (1,3× e 1,6×) revisadas tela a tela |
+
+Os testes de interface continuaram usando os mesmos rótulos e nomes acessíveis. Em uma pasta com caracteres não ASCII no caminho, o AGP no Windows compila com `android.overridePathCheck`, mas os testes JVM falham ao carregar as classes; a execução acima usou o projeto a partir de uma unidade mapeada com `subst` para um caminho ASCII.
+
+## Publicação
+
 Verificação local concluída em **1 de outubro de 2026**, antes da publicação. Os comandos abaixo descrevem o resultado observado; a matriz não representa cobertura de todos os aparelhos ou de todos os extratos bancários.
 
 ## Ambiente

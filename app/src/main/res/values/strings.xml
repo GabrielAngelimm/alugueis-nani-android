@@ -29,7 +29,6 @@
     <string name="greeting_morning">Bom dia, Nani</string>
     <string name="greeting_afternoon">Boa tarde, Nani</string>
     <string name="greeting_evening">Boa noite, Nani</string>
-    <string name="month_overview">Visão do mês</string>
     <string-array name="month_names">
         <item>Janeiro</item><item>Fevereiro</item><item>Março</item><item>Abril</item>
         <item>Maio</item><item>Junho</item><item>Julho</item><item>Agosto</item>

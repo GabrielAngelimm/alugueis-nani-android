@@ -1,123 +1,126 @@
 package com.rentalvalidator.app.presentation.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColors = darkColorScheme(
-    primary = md_theme_dark_primary,
-    onPrimary = md_theme_dark_onPrimary,
-    primaryContainer = md_theme_dark_primaryContainer,
-    onPrimaryContainer = md_theme_dark_onPrimaryContainer,
-    secondary = md_theme_dark_secondary,
-    onSecondary = md_theme_dark_onSecondary,
-    secondaryContainer = md_theme_dark_secondaryContainer,
-    onSecondaryContainer = md_theme_dark_onSecondaryContainer,
-    error = md_theme_dark_error,
-    errorContainer = md_theme_dark_errorContainer,
-    onError = md_theme_dark_onError,
-    onErrorContainer = md_theme_dark_onErrorContainer,
-    background = md_theme_dark_background,
-    onBackground = md_theme_dark_onBackground,
-    surface = md_theme_dark_surface,
-    onSurface = md_theme_dark_onSurface,
-    surfaceVariant = md_theme_dark_surfaceVariant,
-    onSurfaceVariant = md_theme_dark_onSurfaceVariant,
-    outline = md_theme_dark_outline,
-    outlineVariant = Color(0xFF323743),
-    surfaceTint = md_theme_dark_primary,
-    inverseSurface = Color(0xFFF2F3F7),
-    inverseOnSurface = Color(0xFF202631),
-    inversePrimary = BrandPrimaryDark,
+private val LightColors = lightColorScheme(
+    primary = Pen,
+    onPrimary = Color.White,
+    primaryContainer = PenSoft,
+    onPrimaryContainer = PenDeep,
+    inversePrimary = PenNight,
+    secondary = InkMuted,
+    onSecondary = Color.White,
+    secondaryContainer = PaperDeep,
+    onSecondaryContainer = Ink,
+    tertiary = LightNaniColors.paid.ink,
+    onTertiary = Color.White,
+    tertiaryContainer = LightNaniColors.paid.fill,
+    onTertiaryContainer = LightNaniColors.paid.onFill,
+    background = Paper,
+    onBackground = Ink,
+    surface = Sheet,
+    onSurface = Ink,
+    surfaceVariant = PaperDeep,
+    onSurfaceVariant = InkMuted,
+    surfaceTint = Pen,
+    inverseSurface = Color(0xFF242C38),
+    inverseOnSurface = Color(0xFFEDF1E9),
+    error = Stamp,
+    onError = Color.White,
+    errorContainer = StampSoft,
+    onErrorContainer = StampDeep,
+    outline = RuleStrong,
+    outlineVariant = Rule,
     scrim = Color.Black,
-    surfaceBright = AppSurfaceElevatedDark,
-    surfaceDim = AppBackgroundDark,
-    surfaceContainerLowest = AppBackgroundDark,
-    surfaceContainerLow = AppSurfaceDark,
-    surfaceContainer = AppSurfaceMutedDark,
-    surfaceContainerHigh = AppSurfaceMutedDark,
-    surfaceContainerHighest = AppSurfaceElevatedDark
+    surfaceBright = SheetWhite,
+    surfaceDim = PaperDeeper,
+    surfaceContainerLowest = SheetWhite,
+    surfaceContainerLow = PaperLow,
+    surfaceContainer = Paper,
+    surfaceContainerHigh = PaperDeep,
+    surfaceContainerHighest = PaperDeeper
 )
 
-private val LightColors = lightColorScheme(
-    primary = md_theme_light_primary,
-    onPrimary = md_theme_light_onPrimary,
-    primaryContainer = md_theme_light_primaryContainer,
-    onPrimaryContainer = md_theme_light_onPrimaryContainer,
-    secondary = md_theme_light_secondary,
-    onSecondary = md_theme_light_onSecondary,
-    secondaryContainer = md_theme_light_secondaryContainer,
-    onSecondaryContainer = md_theme_light_onSecondaryContainer,
-    error = md_theme_light_error,
-    errorContainer = md_theme_light_errorContainer,
-    onError = md_theme_light_onError,
-    onErrorContainer = md_theme_light_onErrorContainer,
-    background = md_theme_light_background,
-    onBackground = md_theme_light_onBackground,
-    surface = md_theme_light_surface,
-    onSurface = md_theme_light_onSurface,
-    surfaceVariant = md_theme_light_surfaceVariant,
-    onSurfaceVariant = md_theme_light_onSurfaceVariant,
-    outline = md_theme_light_outline,
-    outlineVariant = AppBorder,
-    surfaceTint = BrandPrimary,
-    inverseSurface = Color(0xFF202631),
-    inverseOnSurface = Color(0xFFF2F3F7),
-    inversePrimary = Color(0xFFA7AFFA),
+private val DarkColors = darkColorScheme(
+    primary = PenNight,
+    onPrimary = PenDeepNight,
+    primaryContainer = PenSoftNight,
+    onPrimaryContainer = Color(0xFFDDE4FF),
+    inversePrimary = Pen,
+    secondary = InkMutedNight,
+    onSecondary = PaperNight,
+    secondaryContainer = SheetNightHigh,
+    onSecondaryContainer = InkNight,
+    tertiary = DarkNaniColors.paid.ink,
+    onTertiary = Color(0xFF0B2818),
+    tertiaryContainer = DarkNaniColors.paid.fill,
+    onTertiaryContainer = DarkNaniColors.paid.onFill,
+    background = PaperNight,
+    onBackground = InkNight,
+    surface = SheetNight,
+    onSurface = InkNight,
+    surfaceVariant = SheetNightHigh,
+    onSurfaceVariant = InkMutedNight,
+    surfaceTint = PenNight,
+    inverseSurface = InkNight,
+    inverseOnSurface = SheetNightContainer,
+    error = StampNight,
+    onError = Color(0xFF4A0C06),
+    errorContainer = StampSoftNight,
+    onErrorContainer = Color(0xFFFFDAD4),
+    outline = RuleStrongNight,
+    outlineVariant = RuleNight,
     scrim = Color.Black,
-    surfaceBright = AppSurfaceElevated,
-    surfaceDim = AppBackground,
-    surfaceContainerLowest = AppBackground,
-    surfaceContainerLow = AppSurface,
-    surfaceContainer = AppSurfaceMuted,
-    surfaceContainerHigh = AppSurfaceMuted,
-    surfaceContainerHighest = AppBorder
+    surfaceBright = SheetNightHighest,
+    surfaceDim = PaperNight,
+    surfaceContainerLowest = SheetNightLowest,
+    surfaceContainerLow = SheetNightLow,
+    surfaceContainer = SheetNightContainer,
+    surfaceContainerHigh = SheetNightHigh,
+    surfaceContainerHighest = SheetNightHighest
 )
 
 @Composable
 fun RentalValidatorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
-
     val view = LocalView.current
     if (!view.isInEditMode) {
+        val activity = view.context as? Activity
         SideEffect {
-            val window = (view.context as Activity).window
-            // Make system bars transparent for edge-to-edge immersive feel
-            window.statusBarColor = Color.Transparent.toArgb()
-            window.navigationBarColor = Color.Transparent.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+            // Bars are transparent through enableEdgeToEdge; only their icon contrast follows the app theme.
+            activity?.window?.let { window ->
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
         }
     }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
-        content = content
-    )
+    CompositionLocalProvider(LocalNaniColors provides if (darkTheme) DarkNaniColors else LightNaniColors) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = Typography,
+            shapes = Shapes,
+            content = content
+        )
+    }
 }
 
+/** Extended palette for roles Material does not define. */
+object NaniTheme {
+    val colors: NaniColors
+        @Composable @ReadOnlyComposable get() = LocalNaniColors.current
+}

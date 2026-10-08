@@ -37,6 +37,11 @@ android {
       shaders = false
     }
 
+    // MainActivity pins the UI to pt-BR, so every install must keep the pt-BR resources of its libraries.
+    bundle {
+        language { enableSplit = false }
+    }
+
     packaging {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
