@@ -126,20 +126,14 @@ internal fun UnitDetails(
             NaniDetailHero(
                 title = unitName,
                 subtitle = realUnit?.location?.ifBlank { "Endereço não informado" } ?: "Agrupamento de inquilinos",
-                // What the unit brings in and how full it is; free places and the mark sit just above.
+                // What the unit brings in and how many tenants it holds against its capacity.
                 firstLabel = "Aluguéis por mês", firstValue = CurrencyUtils.format(tenants.sumOf { it.amount }),
                 secondLabel = stringResource(R.string.tenants),
                 secondValue = realUnit?.let { "${it.tenantCount} de ${it.capacity}" } ?: tenants.size.toString(),
-                status = realUnit?.let { unit -> {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind())
-                        Text(unit.vacancySentence(), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } },
                 compact = true,
                 subtitleIcon = Icons.Rounded.LocationOn,
-                identity = DetailIdentity.UNIT
+                identity = DetailIdentity.UNIT,
+                unitIcon = realUnit?.type?.glyph() ?: UnitGroupGlyph
             )
         }
         item {

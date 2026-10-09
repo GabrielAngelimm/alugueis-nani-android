@@ -5,11 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -39,9 +37,9 @@ import com.rentalvalidator.app.presentation.theme.NaniType
 enum class DetailIdentity { TENANT, UNIT }
 
 /**
- * Identity first, then the two numbers that define the record. The facts sit side by
- * side only when both actually fit at the person's font scale; otherwise they stack,
- * so an amount is never cut or wrapped.
+ * Identity first, then the two numbers that define the record, always side by side on one
+ * line with a divider between them. When either value is too wide for its half, both are
+ * set smaller by the same amount, so they stay level, whole and on a single line.
  */
 @Composable
 fun NaniDetailHero(
@@ -54,11 +52,16 @@ fun NaniDetailHero(
     status: (@Composable () -> Unit)? = null,
     compact: Boolean = false,
     subtitleIcon: ImageVector? = null,
-    identity: DetailIdentity = DetailIdentity.TENANT
+    identity: DetailIdentity = DetailIdentity.TENANT,
+    unitIcon: ImageVector? = null
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(top = 4.dp, bottom = 24.dp)) {
-        if (identity == DetailIdentity.UNIT) UnitPlaque(title, size = if (compact) 52.dp else 60.dp)
-        else Monogram(title, size = if (compact) 52.dp else 60.dp)
+        val markSize = if (compact) 52.dp else 60.dp
+        when {
+            identity == DetailIdentity.UNIT && unitIcon != null -> UnitTile(unitIcon, size = markSize)
+            identity == DetailIdentity.UNIT -> UnitPlaque(title, size = markSize)
+            else -> Monogram(title, size = markSize)
+        }
         Spacer(Modifier.height(16.dp))
         Text(title, Modifier.fillMaxWidth().semantics { heading() }, style = MaterialTheme.typography.headlineLarge,
             maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -80,30 +83,34 @@ fun NaniDetailHero(
             BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
                 val measurer = rememberTextMeasurer()
                 val density = LocalDensity.current
-                val valueStyle = NaniType.moneyLarge
-                val labelStyle = MaterialTheme.typography.bodySmall
-                val halfWidth = with(density) { ((maxWidth - 33.dp) / 2).toPx() }
-                // Measure the real strings at the current font scale rather than guessing by breakpoint.
-                val fitsSideBySide = listOf(firstValue, secondValue).all {
-                    measurer.measure(AnnotatedString(it), valueStyle, softWrap = false).size.width <= halfWidth
-                } && listOf(firstLabel, secondLabel).all {
-                    measurer.measure(AnnotatedString(it), labelStyle, softWrap = false).size.width <= halfWidth
+                val gutter = 16.dp
+                // Two equal halves around a 1dp divider with a gutter on each side.
+                val halfWidth = with(density) { ((maxWidth - gutter * 2 - 1.dp) / 2).toPx() }
+                val widest = listOf(firstValue, secondValue).maxOf {
+                    measurer.measure(AnnotatedString(it), NaniType.moneyLarge, softWrap = false).size.width
                 }
-                if (fitsSideBySide) {
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        NaniFact(firstLabel, firstValue, Modifier.weight(1f), valueStyle)
-                        VerticalDivider(Modifier.fillMaxHeight().padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                        NaniFact(secondLabel, secondValue, Modifier.weight(1f), valueStyle)
-                    }
-                } else {
-                    Column {
-                        NaniFact(firstLabel, firstValue, Modifier.fillMaxWidth(), valueStyle)
-                        LedgerRule()
-                        NaniFact(secondLabel, secondValue, Modifier.fillMaxWidth(), valueStyle)
-                    }
+                // One scale for both values keeps them level; the floor only matters on very narrow windows.
+                val scale = if (widest <= halfWidth) 1f else (halfWidth / widest).coerceAtLeast(.45f)
+                val valueStyle = NaniType.moneyLarge.scaled(scale)
+                // Each value is still fitted to the width it actually receives, so nothing is ever clipped.
+                // The divider has a fixed height because fitted text cannot report intrinsic sizes.
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(gutter)) {
+                    HeroFact(firstLabel, firstValue, valueStyle, Modifier.weight(1f))
+                    VerticalDivider(Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    HeroFact(secondLabel, secondValue, valueStyle, Modifier.weight(1f))
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HeroFact(label: String, value: String, valueStyle: androidx.compose.ui.text.TextStyle, modifier: Modifier) {
+    Column(modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        FittingText(value, valueStyle, minScale = .4f)
     }
 }
 

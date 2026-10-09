@@ -21,6 +21,13 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Cottage
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.rounded.Store
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Domain
+import androidx.compose.material.icons.rounded.Apartment
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.Tune
@@ -36,6 +43,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -55,7 +63,7 @@ import com.rentalvalidator.app.util.CurrencyUtils
 internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mode: TenantViewMode,
     query: String, hasFilters: Boolean, onQuery: (String) -> Unit, onMode: (TenantViewMode) -> Unit,
     onUnit: (String) -> Unit, onTenant: (Tenant) -> Unit, onFilters: () -> Unit, onAdd: () -> Unit,
-    listState: LazyListState = rememberLazyListState()) {
+    listState: LazyListState = rememberLazyListState(), allTenants: List<Tenant> = tenants) {
     var showSearch by remember { mutableStateOf(false) }
     if (showSearch) NaniSearchDialog(query, onQuery, { showSearch = false })
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationClearance.current)) {
@@ -91,7 +99,10 @@ internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mod
                     "Cadastre a casa, apartamento ou quarto para organizar os inquilinos por endereço.",
                     actionLabel = "Adicionar unidade", onAction = onAdd)
             }
-            items(names, key = { it }) { name -> UnitRecord(name, units.find { it.name == name }, grouped[name].orEmpty(), onUnit, onTenant) }
+            val residentsByUnit = allTenants.groupBy { it.unit.ifBlank { "Geral" } }
+            items(names, key = { it }) { name ->
+                UnitRecord(name, units.find { it.name == name }, grouped[name].orEmpty(), residentsByUnit[name].orEmpty(), onUnit, onTenant)
+            }
         } else {
             if (tenants.isEmpty()) item {
                 if (query.isNotBlank() || hasFilters) AppEmptyState(Icons.Rounded.SearchOff, "Nenhum inquilino encontrado",
@@ -141,77 +152,67 @@ internal fun CapacityKind.noun(count: Int) = when (this) {
     CapacityKind.SPACES -> if (count == 1) "vaga" else "vagas"
 }
 
-/** "1 lugar livre", "2 quartos livres", "Capacidade completa". */
-internal fun RentalUnit.vacancySentence(): String {
-    val free = capacity - tenantCount
-    val noun = when (capacityKind) {
-        CapacityKind.TENANTS -> if (free == 1) "lugar" else "lugares"
-        CapacityKind.ROOMS -> if (free == 1) "quarto" else "quartos"
-        CapacityKind.SPACES -> if (free == 1) "vaga" else "vagas"
-    }
-    return when {
-        free > 0 -> "$free $noun ${if (free == 1) "livre" else "livres"}"
-        free == 0 -> "Capacidade completa"
-        else -> "${-free} acima da capacidade"
-    }
-}
-
-/** "3 de 4 inquilinos, 1 lugar livre" for a unit; a plain count for a group without a registered unit. */
-internal fun residentsSentence(unit: RentalUnit?, people: Int): String =
-    if (unit == null) "$people ${if (people == 1) "inquilino" else "inquilinos"}"
-    else "${unit.tenantCount} de ${unit.capacity} ${unit.capacityKind.noun(unit.capacity)}, ${unit.vacancySentence().replaceFirstChar { it.lowercase() }}"
-
 /**
- * Who lives in a unit: their monograms side by side with a dashed seat for each free place, the
- * occupancy mark, and the same facts in one sentence below for reading and for TalkBack.
+ * A unit as a card: what it is and where, then what it brings in and how full it is, then who
+ * lives there. The last row opens the list of tenants in place.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun UnitResidents(unit: RentalUnit?, names: List<String>, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
-    val panel = colors.surfaceContainerLow
-    val occupied = unit?.tenantCount ?: names.size
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(panel).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ResidentsPile(names, vacancies = unit?.let { it.capacity - it.tenantCount } ?: 0,
-                Modifier.align(Alignment.CenterVertically), occupied = occupied, size = 32.dp, ring = panel,
-                maxFaces = 4, maxSeats = 2)
-            if (unit != null) StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind(),
-                Modifier.align(Alignment.CenterVertically))
-        }
-        Text(residentsSentence(unit, occupied), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, onUnit: (String) -> Unit, onTenant: (Tenant) -> Unit) {
+private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, residents: List<Tenant>,
+    onUnit: (String) -> Unit, onTenant: (Tenant) -> Unit) {
     var expanded by rememberSaveable(name) { mutableStateOf(false) }
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, AppMotion.StateFloat, label = "unit expand")
     val colors = MaterialTheme.colorScheme
+    val occupied = unit?.tenantCount ?: residents.size
     Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page, vertical = 6.dp),
         shape = RoundedCornerShape(AppSize.sheetRadius), color = colors.surface) {
         Column {
             Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onUnit(name) }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                UnitPlaque(name, size = 48.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                UnitTile(unit?.type?.glyph() ?: UnitGroupGlyph)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(listOfNotNull(unit?.type?.displayName() ?: "Agrupamento de inquilinos",
-                        unit?.location?.takeIf { it.isNotBlank() }).joinToString(", "),
-                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2,
-                        overflow = TextOverflow.Ellipsis)
+                    // What the unit is, with how full it is right beside it.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(unit?.type?.displayName() ?: "Agrupamento de inquilinos", Modifier.align(Alignment.CenterVertically),
+                            style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                        if (unit != null) StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind(),
+                            Modifier.align(Alignment.CenterVertically))
+                    }
+                    unit?.location?.takeIf { it.isNotBlank() }?.let { address ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.LocationOn, null, Modifier.size(14.dp), tint = colors.onSurfaceVariant)
+                            Text(address, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                 }
                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(22.dp), tint = colors.onSurfaceVariant)
             }
-            if (unit != null || tenants.isNotEmpty())
-                UnitResidents(unit, tenants.map { it.name }, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp))
-            LedgerRule()
-            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 16.dp, end = 4.dp),
+            // The same two figures that lead the unit's own page. The divider has a fixed height:
+            // the amount fits itself to its width, and such text cannot report intrinsic sizes.
+            Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLow).padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                Text(pluralStringResource(R.plurals.tenant_count, tenants.size, tenants.size), Modifier.weight(1f).padding(vertical = 12.dp),
-                    style = MaterialTheme.typography.titleSmall)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Aluguéis por mês", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    FittingText(CurrencyUtils.format(residents.sumOf { it.amount }), NaniType.moneyRow)
+                }
+                VerticalDivider(Modifier.height(36.dp).padding(horizontal = 14.dp), color = colors.outlineVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Ocupação", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    FittingText(if (unit != null) "${unit.tenantCount} de ${unit.capacity}"
+                        else pluralStringResource(R.plurals.tenant_count, occupied, occupied), NaniType.moneyRow)
+                }
+            }
+            LedgerRule()
+            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ResidentsPile(residents.map { it.name }, vacancies = unit?.let { it.capacity - it.tenantCount } ?: 0,
+                    occupied = occupied, size = 34.dp, ring = colors.surface, maxFaces = 4, maxSeats = 2)
+                Text(if (occupied == 0) "Nenhum inquilino" else if (expanded) "Ocultar inquilinos" else "Ver inquilinos",
+                    Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.End)
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(Icons.Rounded.ExpandMore, if (expanded) "Recolher inquilinos" else "Mostrar inquilinos", Modifier.rotate(rotation))
                 }
@@ -233,6 +234,19 @@ private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, o
         }
     }
 }
+
+/** What a unit is, as a glyph: house, apartment, building, shop or room. Presentation only. */
+internal fun UnitType.glyph(): ImageVector = when (this) {
+    UnitType.APARTMENT -> Icons.Rounded.Apartment
+    UnitType.HOUSE -> Icons.Rounded.Home
+    UnitType.COMMERCIAL_ROOM -> Icons.Rounded.Store
+    UnitType.BUILDING -> Icons.Rounded.Domain
+    UnitType.KITNET -> Icons.Rounded.MeetingRoom
+    UnitType.OTHER -> Icons.Rounded.Cottage
+}
+
+/** Tenants grouped under a name that has no registered unit. */
+internal val UnitGroupGlyph: ImageVector = Icons.Rounded.Groups
 
 internal fun UnitType.displayName() = when (this) {
     UnitType.APARTMENT -> "Apartamento"; UnitType.HOUSE -> "Casa"; UnitType.COMMERCIAL_ROOM -> "Sala comercial"

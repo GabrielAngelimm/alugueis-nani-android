@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -72,6 +73,25 @@ fun UnitPlaque(name: String, modifier: Modifier = Modifier, size: Dp = 44.dp) {
 }
 
 private fun Modifier.matchParentSizeInset(size: Dp) = this.size(size).padding(size * .08f)
+
+/**
+ * A unit shown by what it is (house, apartment, building...) rather than by letters. The tile is
+ * the same tinted glass as the navigation lens: light from above and a fine rim.
+ */
+@Composable
+fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: Dp = 52.dp) {
+    val colors = MaterialTheme.colorScheme
+    val dark = NaniTheme.colors.isDark
+    val shape = RoundedCornerShape(size * .3f)
+    Box(modifier.size(size).clearAndSetSemantics { }.clip(shape)
+        .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
+            androidx.compose.ui.graphics.lerp(colors.primaryContainer, androidx.compose.ui.graphics.Color.White, if (dark) .06f else .2f),
+            colors.primaryContainer)))
+        .border(1.dp, colors.primary.copy(alpha = if (dark) .26f else .2f), shape),
+        contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(icon, null, Modifier.size(size * .48f), tint = colors.onPrimaryContainer)
+    }
+}
 
 /**
  * The people of a unit at a glance: their monograms overlap like portraits on a fridge door,

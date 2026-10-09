@@ -1,6 +1,19 @@
 # Validação da revisão
 
-## Correção dos anéis (9 de outubro de 2026)
+## Cards e detalhes das unidades (8 de outubro de 2026)
+
+O card da unidade ganhou o ícone do tipo de imóvel no lugar das iniciais, a marca de ocupação ao lado do tipo e uma faixa com dois números alinhados: aluguéis por mês e ocupação. Os moradores ficam no rodapé, junto do botão que mostra a lista. Nos detalhes do inquilino e da unidade, os dois fatos principais ficam sempre na mesma linha, com um fio entre eles; quando um valor é largo, os dois diminuem juntos. O detalhe da unidade deixou de mostrar a marca de ocupação e o texto de vagas ou excesso, e o condomínio só aparece em "Sobre a unidade" quando foi informado.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **44 testes**, sem falhas |
+| Testes instrumentados | **49 testes**, todos passaram (1 novo: valores largos numa coluna de 320dp continuam lado a lado, em uma linha, sem invadir o outro lado) |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Cards fechados e abertos nos dois temas, detalhes de unidade e inquilino, valores largos e escala de texto 1,3 revisados nas capturas dos testes |
+
+Durante a revisão, um teste mostrou que texto ajustável não pode ficar dentro de uma linha com altura intrínseca: a tela de Locações fechava ao abrir. O divisor passou a ter altura fixa e o problema não se repetiu.
+
+## Correção dos anéis (8 de outubro de 2026)
 
 Os anéis do Início, de Receber (Mensal e Conferir extrato) mediam valores em reais e deixavam "a vencer" como trilho, enquanto os números ao lado contavam inquilinos; com aluguéis diferentes, as fatias não correspondiam às quantidades. Todos passaram a contar itens a partir de uma única lista que também gera contadores e legendas; o percentual central é a parcela de pagos. Docs já contava corretamente e passou a usar a mesma lista. Os anéis de ocupação foram retirados dos cards e dos detalhes das unidades.
 

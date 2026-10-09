@@ -197,6 +197,32 @@ class VisualFlowTest {
         shot("dashboard-compact-overview")
     }
 
+    /** The two leading facts of a detail page share one line even when a value is wide. */
+    @Test fun heroFactsStaySideBySideWithWideValues() {
+        compose.setContent {
+            RentalValidatorTheme(darkTheme = true) {
+                Surface {
+                    Column(Modifier.width(320.dp).statusBarsPadding()) {
+                        com.rentalvalidator.app.presentation.design.NaniDetailHero(
+                            "Esio 46", "R. Macieira N10 - Guarulhos", "Aluguéis por mês", "R$ 36.555,00", "Inquilinos", "5 de 4",
+                            compact = true, identity = com.rentalvalidator.app.presentation.design.DetailIdentity.UNIT)
+                    }
+                }
+            }
+        }
+        val amount = compose.onNodeWithText("R$ 36.555,00").fetchSemanticsNode()
+        val count = compose.onNodeWithText("5 de 4").fetchSemanticsNode()
+        Assert.assertEquals("Values share one line", amount.boundsInRoot.top, count.boundsInRoot.top, 1.5f)
+        Assert.assertTrue("Values sit side by side", amount.boundsInRoot.right < count.boundsInRoot.left)
+        listOf("R$ 36.555,00", "5 de 4").forEach { value ->
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNodeWithText(value).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            Assert.assertEquals(1, layouts.single().lineCount)
+            Assert.assertTrue("$value must fit its half", layouts.single().getLineRight(0) <= layouts.single().size.width + 1f)
+        }
+        shot("hero-wide-values")
+    }
+
     /** The production shell, not this harness's Scaffold, must give page text the theme's ink. */
     @Test fun appShellInksPageTextForTheNightTheme() {
         var ink = androidx.compose.ui.graphics.Color.Unspecified

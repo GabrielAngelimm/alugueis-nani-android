@@ -158,6 +158,7 @@ fun TenantsScreen(
             }
             RentalPane.Overview -> TenantsOverview(
                 tenants = visibleTenants,
+                allTenants = tenants,
                 units = units,
                 mode = mode,
                 query = query,

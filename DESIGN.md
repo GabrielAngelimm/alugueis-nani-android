@@ -21,7 +21,7 @@ A interface parte do objeto que o aplicativo substitui: a caderneta de aluguéis
 | Livro (pago) | `#2B6A4B` sobre `#DBEEE1` | `#8AD4AA` sobre `#173728` | Recebido, vigente |
 | Marca-texto (pendente) | `#573700` sobre `#FBE8A8` | `#FBE3A5` sobre `#3A3013` | Em aberto, a vencer |
 | Carimbo (atraso) | `#B0372D` sobre `#FAE2DD` | `#FF9E91` sobre `#4C1E19` | Vencido, erro |
-| Placa | `#233886` | `#3A50A8` | Identidade das unidades |
+| Placa | `#233886` | `#3A50A8` | Selo do aplicativo |
 
 As cores ficam em `presentation/theme/Color.kt`. Papéis que o Material 3 não define (estados de pagamento, placa, preenchimento de ação, trilho dos anéis e monogramas) são expostos por `NaniTheme.colors`. As telas escolhem um papel, nunca um valor hexadecimal.
 
@@ -50,8 +50,8 @@ A barra é uma cápsula flutuante sobre o conteúdo, que corre por trás dela e 
 | `LedgerSheet`, `LedgerSlice`, `LedgerRule`, `NaniActionRow`, `NaniFact` | `design/Ledger.kt` | Folhas pautadas e linhas de lista |
 | `StatusMark` | `design/Status.kt` | Carimbo, marca-texto, tracejado e contorno |
 | `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend`, `dueStats`, `ringOf` | `design/Progress.kt` | Anéis por contagem do Início, de Receber e de Docs, com contadores e legendas da mesma lista; a geometria (`ringMarks`) é testada em `RingMathTest` |
-| `Monogram`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades; fileira de moradores com vagas livres tracejadas nos cards de unidade |
-| `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe |
+| `Monogram`, `UnitTile`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades: o ícone do tipo de imóvel (`UnitTile`) marca cada unidade no card e no detalhe; fileira de moradores com vagas livres tracejadas no rodapé do card |
+| `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe; os dois fatos principais ficam sempre na mesma linha, separados por um fio |
 | `NaniSheet`, `NaniChoice` | `design/NaniSheet.kt` | Painéis inferiores e escolhas exclusivas |
 | `NaniConfirmDialog` | `design/Dialogs.kt` | Confirmações com verbo de ação |
 | `AppEmptyState`, `AppLoadingState`, `AppErrorState` | `design/States.kt` | Estados vazios, carregamento e erro |
@@ -66,7 +66,7 @@ Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e d
 - Rótulos visíveis dos campos são também o nome acessível; ícones de ação têm descrição própria.
 - Alvos de toque mínimos de 48dp; linhas de lista inteiras são clicáveis.
 - Estados não dependem só de cor; contraste de texto atende WCAG AA nos dois temas.
-- Fatos lado a lado empilham quando não cabem na largura; valores nunca são cortados.
+- Os dois fatos do topo dos detalhes ficam sempre na mesma linha. Se um valor não cabe na sua metade, os dois diminuem na mesma proporção, para continuarem nivelados e inteiros. Valores nunca são cortados.
 - O texto não acompanha o tamanho de fonte do sistema. A escala base já foi definida com corpo de 15sp para leitura confortável; quem precisar de tudo maior pode usar o tamanho de exibição do Android, que amplia a interface inteira.
 - Janelas a partir de 600dp usam trilho lateral; o conteúdo fica limitado a 960dp.
 - Componentes do sistema (como o seletor de datas) seguem pt-BR, como o restante do aplicativo.
