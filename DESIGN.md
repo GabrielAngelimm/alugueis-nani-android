@@ -22,8 +22,9 @@ A interface parte do objeto que o aplicativo substitui: a caderneta de aluguéis
 | Marca-texto (pendente) | `#573700` sobre `#FBE8A8` | `#FBE3A5` sobre `#3A3013` | Em aberto, a vencer |
 | Carimbo (atraso) | `#B0372D` sobre `#FAE2DD` | `#FF9E91` sobre `#4C1E19` | Vencido, erro |
 | Placa | `#233886` | `#3A50A8` | Selo do aplicativo |
+| Capa | `#2D47AC` a `#16245E` | `#2C3F96` a `#111A4A` | Topo das páginas de detalhe, com texto `#F4F6FF` |
 
-As cores ficam em `presentation/theme/Color.kt`. Papéis que o Material 3 não define (estados de pagamento, placa, preenchimento de ação, trilho dos anéis e monogramas) são expostos por `NaniTheme.colors`. As telas escolhem um papel, nunca um valor hexadecimal.
+As cores ficam em `presentation/theme/Color.kt`. Papéis que o Material 3 não define (estados de pagamento, placa, capa, preenchimento de ação, trilho dos anéis e monogramas) são expostos por `NaniTheme.colors`. As telas escolhem um papel, nunca um valor hexadecimal.
 
 ## Tipografia
 
@@ -42,6 +43,10 @@ As fontes são locais e acompanhadas das licenças OFL em `assets/licenses`.
 
 A barra é uma cápsula flutuante sobre o conteúdo, que corre por trás dela e se dissolve num degradê do papel. A sombra tem duas camadas tingidas com a tinta do tema, uma difusa e ampla e outra curta de contato; no tema escuro, uma borda de luz fina substitui a sombra que não apareceria. As listas reservam ao final o espaço da barra (`LocalNavigationClearance`), para que o último item nunca fique escondido. As seções são Início, Locações, Receber e Docs.
 
+## Capa das páginas de detalhe
+
+Inquilino e unidade abrem com um único cartão. O topo é uma capa azul-profunda, como a de uma caderneta de poupança, iluminada no canto superior direito e gravada com um guilloché: duas famílias de linhas onduladas que se cruzam e só aparecem a partir do meio, deixando limpa a área do texto. A gravura é derivada do nome, então cada inquilino e cada unidade tem a sua e a reencontra a cada visita. Sobre a capa ficam, numa só linha de leitura, a marca (o monograma do inquilino num halo de luz, ou o ícone do tipo de imóvel num vidro fosco), o nome em Fraunces e o subtítulo (a unidade do inquilino ou o endereço da unidade). O nome usa o maior corpo que o mantém em até duas linhas (26, 23 ou 20sp) e só nomes muito longos chegam a três. Abaixo da capa, no mesmo cartão, ficam os dois fatos principais. De dia, o cartão tem uma sombra tingida com o azul da capa; à noite, a própria capa faz o destaque.
+
 ## Componentes
 
 | Componente | Arquivo | Papel |
@@ -51,7 +56,8 @@ A barra é uma cápsula flutuante sobre o conteúdo, que corre por trás dela e 
 | `StatusMark` | `design/Status.kt` | Carimbo, marca-texto, tracejado e contorno |
 | `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend`, `dueStats`, `ringOf` | `design/Progress.kt` | Anéis por contagem do Início, de Receber e de Docs, com contadores e legendas da mesma lista; a geometria (`ringMarks`) é testada em `RingMathTest` |
 | `Monogram`, `UnitTile`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades: o ícone do tipo de imóvel (`UnitTile`) marca cada unidade no card e no detalhe; no rodapé do card, até quatro retratos sobrepostos dos moradores e um "+N" discreto para os demais |
-| `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe; os dois fatos principais ficam sempre na mesma linha, separados por um fio |
+| `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe: capa com marca, nome e subtítulo; abaixo, os dois fatos principais sempre na mesma linha, separados por um fio |
+| `engravingOf`, `strandY` | `design/Engraving.kt` | Gravura da capa derivada do nome; a geometria é testada em `EngravingTest` |
 | `NaniSheet`, `NaniChoice` | `design/NaniSheet.kt` | Painéis inferiores e escolhas exclusivas |
 | `NaniConfirmDialog` | `design/Dialogs.kt` | Confirmações com verbo de ação |
 | `AppEmptyState`, `AppLoadingState`, `AppErrorState` | `design/States.kt` | Estados vazios, carregamento e erro |

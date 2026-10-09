@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -205,7 +206,12 @@ class VisualFlowTest {
                     Column(Modifier.width(320.dp).statusBarsPadding()) {
                         com.rentalvalidator.app.presentation.design.NaniDetailHero(
                             "Esio 46", "R. Macieira N10 - Guarulhos", "Aluguéis por mês", "R$ 36.555,00", "Inquilinos", "5 de 4",
-                            compact = true, identity = com.rentalvalidator.app.presentation.design.DetailIdentity.UNIT)
+                            identity = com.rentalvalidator.app.presentation.design.DetailIdentity.UNIT,
+                            unitIcon = androidx.compose.material.icons.Icons.Rounded.Home)
+                        // A long name and a long unit wrap inside the cover without pushing the facts apart.
+                        com.rentalvalidator.app.presentation.design.NaniDetailHero(
+                            "Ana Beatriz de Albuquerque Figueiredo", "Residencial Jardim das Oliveiras, bloco B, apartamento 302",
+                            "Aluguel mensal", "R$ 12.480,00", "Vencimento", "Dia 28")
                     }
                 }
             }
@@ -220,6 +226,11 @@ class VisualFlowTest {
             Assert.assertEquals(1, layouts.single().lineCount)
             Assert.assertTrue("$value must fit its half", layouts.single().getLineRight(0) <= layouts.single().size.width + 1f)
         }
+        val name = compose.onNodeWithText("Ana Beatriz de Albuquerque Figueiredo").fetchSemanticsNode()
+        val rent = compose.onNodeWithText("R$ 12.480,00").fetchSemanticsNode()
+        val due = compose.onNodeWithText("Dia 28").fetchSemanticsNode()
+        Assert.assertTrue("The facts sit below the cover", rent.boundsInRoot.top > name.boundsInRoot.bottom)
+        Assert.assertEquals("Long names leave the facts level", rent.boundsInRoot.top, due.boundsInRoot.top, 1.5f)
         shot("hero-wide-values")
     }
 
@@ -474,7 +485,7 @@ class VisualFlowTest {
                             )
                             com.rentalvalidator.app.presentation.design.NaniDetailHero(
                                 "Jardim das Oliveiras", "Rua das Oliveiras, 84", "Inquilinos", "3",
-                                "Capacidade", "4 inquilinos", compact = true
+                                "Capacidade", "4 inquilinos", identity = com.rentalvalidator.app.presentation.design.DetailIdentity.UNIT
                             )
                         }
                     }

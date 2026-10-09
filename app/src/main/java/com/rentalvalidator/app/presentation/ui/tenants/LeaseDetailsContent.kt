@@ -130,7 +130,6 @@ internal fun UnitDetails(
                 firstLabel = "Aluguéis por mês", firstValue = CurrencyUtils.format(tenants.sumOf { it.amount }),
                 secondLabel = stringResource(R.string.tenants),
                 secondValue = realUnit?.let { "${it.tenantCount} de ${it.capacity}" } ?: tenants.size.toString(),
-                compact = true,
                 subtitleIcon = Icons.Rounded.LocationOn,
                 identity = DetailIdentity.UNIT,
                 unitIcon = realUnit?.type?.glyph() ?: UnitGroupGlyph

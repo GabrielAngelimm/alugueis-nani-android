@@ -1,45 +1,71 @@
 package com.rentalvalidator.app.presentation.design
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.AppSpace
+import com.rentalvalidator.app.presentation.theme.NaniSerifText
+import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
+import kotlin.math.min
 
 enum class DetailIdentity { TENANT, UNIT }
 
 /**
- * Identity first, then the two numbers that define the record, always side by side on one
- * line with a divider between them. When either value is too wide for its half, both are
- * set smaller by the same amount, so they stay level, whole and on a single line.
+ * The head of a detail page as one card. Its cover holds who or what the page is about: the
+ * mark, the name and the line under it, set on deep blue with a guilloché engraved from the name.
+ * Below the cover, the two numbers that define the record share one line with a divider; when
+ * either is too wide for its half, both are set smaller by the same amount, so they stay level.
  */
 @Composable
 fun NaniDetailHero(
@@ -49,67 +75,161 @@ fun NaniDetailHero(
     firstValue: String,
     secondLabel: String,
     secondValue: String,
-    status: (@Composable () -> Unit)? = null,
-    compact: Boolean = false,
     subtitleIcon: ImageVector? = null,
     identity: DetailIdentity = DetailIdentity.TENANT,
     unitIcon: ImageVector? = null
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(top = 4.dp, bottom = 24.dp)) {
-        val markSize = if (compact) 52.dp else 60.dp
-        when {
-            identity == DetailIdentity.UNIT && unitIcon != null -> UnitTile(unitIcon, size = markSize)
-            identity == DetailIdentity.UNIT -> UnitPlaque(title, size = markSize)
-            else -> Monogram(title, size = markSize)
+    val nani = NaniTheme.colors
+    val shape = RoundedCornerShape(AppSize.sheetRadius)
+    // By day the card lifts off the paper on a shadow tinted with the cover; at night the cover's glow is enough.
+    val lift = if (nani.isDark) Modifier else Modifier.shadow(14.dp, shape, ambientColor = nani.coverEnd.copy(alpha = .16f),
+        spotColor = nani.coverEnd.copy(alpha = .3f))
+    Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(top = 4.dp, bottom = 24.dp).then(lift),
+        shape = shape, color = MaterialTheme.colorScheme.surface) {
+        Column {
+            HeroCover(seed = title) {
+                if (identity == DetailIdentity.UNIT) UnitCoverMark(title, unitIcon) else PersonCoverMark(title)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    HeroTitle(title, nani.onPlaque)
+                    Row {
+                        if (subtitleIcon != null) {
+                            Icon(subtitleIcon, null, Modifier.padding(top = 2.dp).size(16.dp), tint = nani.onPlaque.copy(alpha = .7f))
+                            Spacer(Modifier.size(6.dp))
+                        }
+                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = nani.onPlaque.copy(alpha = .84f),
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            HeroFacts(firstLabel, firstValue, secondLabel, secondValue)
         }
-        Spacer(Modifier.height(16.dp))
-        Text(title, Modifier.fillMaxWidth().semantics { heading() }, style = MaterialTheme.typography.headlineLarge,
+    }
+}
+
+/** The name on a cover: the display serif, a size down from a page title so it can sit beside the mark. */
+private val HeroName = TextStyle(fontFamily = com.rentalvalidator.app.presentation.theme.NaniSerif,
+    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 26.sp, lineHeight = 31.sp, letterSpacing = (-0.4).sp)
+private val HeroNameSizes = listOf(26, 23, 20).map { HeroName.copy(fontSize = it.sp, lineHeight = (it + 5).sp) }
+
+/**
+ * The name at the largest size that keeps it within two lines, so short names stay bold and long
+ * ones break into whole words instead of leaving a lone "de" on a line. Only the longest names use a third.
+ */
+@Composable
+private fun HeroTitle(title: String, color: Color) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val width = constraints.maxWidth
+        val style = remember(title, width, density) {
+            HeroNameSizes.firstOrNull {
+                measurer.measure(AnnotatedString(title), it, constraints = Constraints(maxWidth = width)).lineCount <= 2
+            } ?: HeroNameSizes.last()
+        }
+        Text(title, Modifier.fillMaxWidth().semantics { heading() }, style = style, color = color,
             maxLines = 3, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (subtitleIcon != null) {
-                Icon(subtitleIcon, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.size(6.dp))
+    }
+}
+
+/** Deep blue lit from the upper right, engraved with two sets of strands that weave toward the right edge. */
+@Composable
+private fun HeroCover(seed: String, content: @Composable RowScope.() -> Unit) {
+    val nani = NaniTheme.colors
+    val engraving = remember(seed) { engravingOf(seed) }
+    // Strands run past the edges by design; the cover keeps them off the facts below.
+    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).clipToBounds().drawWithCache {
+        val width = size.width
+        val height = size.height
+        val step = 4.dp.toPx()
+        fun strand(index: Int, crossing: Boolean) = Path().apply {
+            moveTo(0f, engraving.strandY(index, 0f, width, height, crossing))
+            var x = 0f
+            while (x < width) {
+                x = min(x + step, width)
+                lineTo(x, engraving.strandY(index, x, width, height, crossing))
             }
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (status != null) {
-            Spacer(Modifier.height(12.dp))
-            status()
+        val warp = List(EngravingStrands) { strand(it, crossing = false) }
+        val weft = List(EngravingStrands) { strand(it, crossing = true) }
+        val ground = Brush.linearGradient(listOf(nani.coverStart, nani.coverEnd), start = Offset(width, 0f), end = Offset(0f, height))
+        val glow = Brush.radialGradient(listOf(Color.White.copy(alpha = .13f), Color.Transparent),
+            center = Offset(width * .94f, -height * .15f), radius = height * 1.4f)
+        // The engraving fades in from the middle, so the mark and the start of the name sit on clear blue.
+        fun ink(alpha: Float) = Brush.horizontalGradient(0f to Color.Transparent, .3f to Color.Transparent,
+            1f to nani.onPlaque.copy(alpha = alpha))
+        val warpInk = ink(.22f)
+        val weftInk = ink(.1f)
+        val warpLine = Stroke(1.dp.toPx())
+        val weftLine = Stroke(.75.dp.toPx())
+        onDrawBehind {
+            drawRect(ground)
+            weft.forEach { drawPath(it, weftInk, style = weftLine) }
+            warp.forEach { drawPath(it, warpInk, style = warpLine) }
+            drawRect(glow)
         }
-        Spacer(Modifier.height(20.dp))
-        LedgerSheet {
-            BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
-                val measurer = rememberTextMeasurer()
-                val density = LocalDensity.current
-                val gutter = 16.dp
-                // Two equal halves around a 1dp divider with a gutter on each side.
-                val halfWidth = with(density) { ((maxWidth - gutter * 2 - 1.dp) / 2).toPx() }
-                val widest = listOf(firstValue, secondValue).maxOf {
-                    measurer.measure(AnnotatedString(it), NaniType.moneyLarge, softWrap = false).size.width
-                }
-                // One scale for both values keeps them level; the floor only matters on very narrow windows.
-                val scale = if (widest <= halfWidth) 1f else (halfWidth / widest).coerceAtLeast(.45f)
-                val valueStyle = NaniType.moneyLarge.scaled(scale)
-                // Each value is still fitted to the width it actually receives, so nothing is ever clipped.
-                // The divider has a fixed height because fitted text cannot report intrinsic sizes.
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(gutter)) {
-                    HeroFact(firstLabel, firstValue, valueStyle, Modifier.weight(1f))
-                    VerticalDivider(Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                    HeroFact(secondLabel, secondValue, valueStyle, Modifier.weight(1f))
-                }
-            }
+    }.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+        content = content)
+}
+
+/** A person on the cover: their own monogram, set in a halo of the cover's light. */
+@Composable
+private fun PersonCoverMark(name: String) {
+    Box(Modifier.size(64.dp).clearAndSetSemantics { }.background(NaniTheme.colors.onPlaque.copy(alpha = .16f), CircleShape)
+        .padding(3.dp)) {
+        Monogram(name, size = 58.dp)
+    }
+}
+
+/** A unit on the cover: what it is, drawn in light on a pane of frosted glass. */
+@Composable
+private fun UnitCoverMark(name: String, icon: ImageVector?) {
+    val light = NaniTheme.colors.onPlaque
+    val shape = RoundedCornerShape(19.dp)
+    Box(Modifier.size(64.dp).clearAndSetSemantics { }.clip(shape)
+        .background(Brush.verticalGradient(listOf(light.copy(alpha = .24f), light.copy(alpha = .08f))))
+        .border(1.dp, light.copy(alpha = .3f), shape), contentAlignment = Alignment.Center) {
+        if (icon != null) Icon(icon, null, Modifier.size(30.dp), tint = light)
+        else Text(initialsOf(name), style = TextStyle(fontFamily = NaniSerifText,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 22.sp), color = light)
+    }
+}
+
+/** The record's two numbers, side by side under the cover at one shared scale. */
+@Composable
+private fun HeroFacts(firstLabel: String, firstValue: String, secondLabel: String, secondValue: String) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val gutter = 16.dp
+        // Two equal halves around a 1dp divider with a gutter on each side.
+        val halfWidth = with(density) { ((maxWidth - gutter * 2 - 1.dp) / 2).toPx() }
+        val widest = listOf(firstValue, secondValue).maxOf {
+            measurer.measure(AnnotatedString(it), NaniType.moneyLarge, softWrap = false).size.width
+        }
+        // One scale for both values keeps them level; the floor only matters on very narrow windows.
+        val scale = if (widest <= halfWidth) 1f else (halfWidth / widest).coerceAtLeast(.45f)
+        val valueStyle = NaniType.moneyLarge.scaled(scale)
+        // Labels stay on one line too, at their own shared scale, so a long label never pushes its value down.
+        val labelStyle = MaterialTheme.typography.bodySmall
+        val widestLabel = listOf(firstLabel, secondLabel).maxOf {
+            measurer.measure(AnnotatedString(it), labelStyle, softWrap = false).size.width
+        }
+        val fittedLabel = labelStyle.scaled(if (widestLabel <= halfWidth) 1f else (halfWidth / widestLabel).coerceAtLeast(.7f))
+        // Each value is still fitted to the width it actually receives, so nothing is ever clipped.
+        // The divider has a fixed height because fitted text cannot report intrinsic sizes.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(gutter)) {
+            HeroFact(firstLabel, firstValue, fittedLabel, valueStyle, Modifier.weight(1f))
+            VerticalDivider(Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            HeroFact(secondLabel, secondValue, fittedLabel, valueStyle, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun HeroFact(label: String, value: String, valueStyle: androidx.compose.ui.text.TextStyle, modifier: Modifier) {
+private fun HeroFact(label: String, value: String, labelStyle: TextStyle, valueStyle: TextStyle, modifier: Modifier) {
     Column(modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        FittingText(label, labelStyle, color = MaterialTheme.colorScheme.onSurfaceVariant, minScale = .6f)
         FittingText(value, valueStyle, minScale = .4f)
     }
 }

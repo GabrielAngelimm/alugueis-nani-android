@@ -1,5 +1,18 @@
 # Validação da revisão
 
+## Capa dos detalhes de inquilino e unidade (9 de outubro de 2026)
+
+O topo das páginas de detalhe deixou de empilhar ícone, nome e subtítulo em linhas separadas. Agora é um único cartão: uma capa azul com gravura derivada do nome, onde a marca, o nome e o subtítulo formam um só bloco, e logo abaixo os dois fatos principais. Os demais componentes das duas telas não mudaram.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **49 testes** (5 novos em `EngravingTest`: mesma gravura para o mesmo nome, nomes diferentes com gravuras diferentes, parâmetros dentro dos limites, linhas cobrindo toda a capa e cruzamento no sentido oposto) |
+| Testes instrumentados | **50 testes**, todos passaram (o teste de valores largos em 320dp passou a incluir um inquilino de nome e unidade longos) |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Capas de inquilino e unidade nos dois temas, nome longo e endereço longo em 320dp e texto ampliado, revisadas nas capturas dos testes |
+
+A primeira rodada revelou dois problemas, ambos corrigidos: no tema escuro, as linhas da gravura passavam da capa e apareciam sobre os fatos; e, em 320dp, o rótulo "Aluguéis por mês" quebrava em duas linhas e desnivelava os valores. Os rótulos passaram a ficar em uma linha com escala compartilhada, como os valores.
+
 ## Moradores no card da unidade (8 de outubro de 2026)
 
 O cabeçalho do card passou a mostrar só o nome da unidade e o endereço; o tipo do imóvel e a marca de ocupação saíram. No rodapé, a fileira mostra até quatro moradores e conta os demais num "+N" discreto; as vagas livres tracejadas foram retiradas. Ao abrir o card, cada retrato da fileira se desloca até a linha do respectivo inquilino e os nomes entram em seguida; ao fechar, as linhas voltam a formar a fileira. A fileira também passou a ser lida pelo TalkBack ("Clara Nunes, Davi Rocha, ... e mais 2").
