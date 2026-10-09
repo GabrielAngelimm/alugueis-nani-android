@@ -65,7 +65,7 @@ jobs:
       - name: Run on an isolated emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: 35
+          api-level: 36
           arch: x86_64
           target: google_apis
           profile: pixel_2

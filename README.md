@@ -52,7 +52,7 @@ As versões estão centralizadas em [`gradle/libs.versions.toml`](gradle/libs.ve
 
 - Android Studio compatível com Android Gradle Plugin **9.0.1**.
 - **JDK 17** para o toolchain de compilação.
-- Android SDK: plataforma **35** e Build Tools **36.0.0**.
+- Android SDK: plataforma **36** e Build Tools **36.0.0**.
 - Dispositivo ou emulador com Android **8.0 / API 26** ou superior.
 
 ```sh
