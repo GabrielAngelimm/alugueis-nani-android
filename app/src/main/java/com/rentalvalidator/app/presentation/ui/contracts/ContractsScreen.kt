@@ -118,27 +118,21 @@ fun ContractsScreen(
                     val current = all.count { it == ContractStatus.VIGENTE }
                     val review = all.count { it == ContractStatus.VENCE_EM_BREVE || it == ContractStatus.DATA_PENDENTE }
                     val expired = all.count { it == ContractStatus.VENCIDO }
-                    val total = tenants.size.toDouble()
+                    // Legend and ring come from one list; "sem contrato" counts toward the whole but stays as track.
+                    val stats = listOf(
+                        StatCount(current, if (current == 1) "vigente" else "vigentes", ringColor(StatusKind.SUCCESS)),
+                        StatCount(review, "a revisar", ringColor(StatusKind.WARNING)),
+                        StatCount(expired, if (expired == 1) "vencido" else "vencidos", ringColor(StatusKind.ERROR)),
+                        StatCount(all.size - attached, "sem contrato", ringColor(StatusKind.NEUTRAL), hollow = true)
+                    )
                     LedgerSheet(Modifier.padding(horizontal = AppSpace.page).padding(bottom = 12.dp)) {
                         Row(Modifier.padding(start = 14.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            StatusRing(
-                                segments = listOf(
-                                    RingSegment(shareOf(current.toDouble(), total), ringColor(StatusKind.SUCCESS)),
-                                    RingSegment(shareOf(review.toDouble(), total), ringColor(StatusKind.WARNING)),
-                                    RingSegment(shareOf(expired.toDouble(), total), ringColor(StatusKind.ERROR))
-                                ),
-                                description = "$attached de ${tenants.size} inquilinos com contrato anexado",
-                                size = 64.dp, stroke = 7.dp
-                            ) { RingLabel("$attached/${tenants.size}", 64.dp) }
+                            StatusRing(ringOf(stats), "$attached de ${tenants.size} inquilinos com contrato anexado",
+                                size = 64.dp, stroke = 7.dp) { RingLabel("$attached/${tenants.size}", 64.dp) }
                             Spacer(Modifier.width(14.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text("$attached de ${tenants.size} com contrato anexado", style = MaterialTheme.typography.titleSmall)
-                                RingLegend(listOf(
-                                    StatCount(current, "vigentes", ringColor(StatusKind.SUCCESS)),
-                                    StatCount(review, "a revisar", ringColor(StatusKind.WARNING)),
-                                    StatCount(expired, "vencidos", ringColor(StatusKind.ERROR)),
-                                    StatCount(all.size - attached, "sem contrato", ringColor(StatusKind.NEUTRAL), hollow = true)
-                                ))
+                                RingLegend(stats)
                             }
                         }
                     }

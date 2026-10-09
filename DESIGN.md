@@ -7,7 +7,7 @@ A interface parte do objeto que o aplicativo substitui: a caderneta de aluguéis
 1. **Livro-caixa, não painel.** Listas são folhas pautadas: uma superfície por grupo, entradas separadas por linhas finas. Cartões individuais ficam para objetos que têm ações próprias (uma unidade, um resultado de conferência, um dossiê de documentos).
 2. **Estado é forma, não só cor.** Pago é um carimbo de contorno duplo, levemente inclinado; pendente é uma faixa de marca-texto; em análise é um contorno tracejado; problema é um contorno sólido com fundo. A leitura sobrevive a daltonismo e a telas em escala de cinza.
 3. **Tinta é ação.** O azul de caneta aparece em botões, seleção e links. Valores, nomes e estados usam tinta neutra ou o papel semântico correspondente.
-4. **Um único destaque.** O anel do mês é o elemento memorável: arcos por estado (pago, em análise, em atraso) a partir do topo, proporcionais ao valor, com o percentual recebido no centro e, ao lado, a contagem explícita de pagos, a vencer e em atraso. É o único movimento espontâneo da interface, uma varredura única no sentido horário. Os demais movimentos respondem a uma ação: folhas que abrem, linhas que expandem, o carimbo que "cai" quando um aluguel é marcado como pago, a lente da navegação que desliza até a seção escolhida.
+4. **Um único destaque.** O anel do mês é o elemento memorável: uma fatia por estado (pago, a vencer, em atraso e, quando houver, em análise) a partir do topo, cada uma proporcional à quantidade de aluguéis naquele estado, com o percentual de pagos no centro e, ao lado, a mesma contagem em números. Anel, contadores e legendas são montados a partir de uma única lista, então cor, rótulo, quantidade e percentual não podem divergir. Os anéis aparecem só no Início, em Receber (Mensal e Conferir extrato) e em Docs. É o único movimento espontâneo da interface, uma varredura única no sentido horário. Os demais movimentos respondem a uma ação: folhas que abrem, linhas que expandem, o carimbo que "cai" quando um aluguel é marcado como pago, a lente da navegação que desliza até a seção escolhida.
 
 ## Cores
 
@@ -49,8 +49,8 @@ A barra é uma cápsula flutuante sobre o conteúdo, que corre por trás dela e 
 | `NaniHeader`, `NaniTabs`, `NaniSection`, `NaniEditor` | `design/Layout.kt` | Cabeçalhos, controle segmentado, seções e editor em tela cheia |
 | `LedgerSheet`, `LedgerSlice`, `LedgerRule`, `NaniActionRow`, `NaniFact` | `design/Ledger.kt` | Folhas pautadas e linhas de lista |
 | `StatusMark` | `design/Status.kt` | Carimbo, marca-texto, tracejado e contorno |
-| `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend` | `design/Progress.kt` | Anéis do mês, da conferência, dos contratos e da ocupação, com contagens |
-| `Monogram`, `UnitPlaque`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades |
+| `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend`, `dueStats`, `ringOf` | `design/Progress.kt` | Anéis por contagem do Início, de Receber e de Docs, com contadores e legendas da mesma lista; a geometria (`ringMarks`) é testada em `RingMathTest` |
+| `Monogram`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades; fileira de moradores com vagas livres tracejadas nos cards de unidade |
 | `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe |
 | `NaniSheet`, `NaniChoice` | `design/NaniSheet.kt` | Painéis inferiores e escolhas exclusivas |
 | `NaniConfirmDialog` | `design/Dialogs.kt` | Confirmações com verbo de ação |

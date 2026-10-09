@@ -125,11 +125,12 @@ private fun DueState.ordinalForAttention() = when (this) {
 private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPayments: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val month = data.period.monthInSentence()
-    val paid = states.count { it == DueState.PAID }
+    // One breakdown feeds the ring, its percentage and the counters, so they always agree.
+    val counts = dueCounts(states)
+    val stats = dueStats(counts)
+    val percent = percentOf(counts.paid, counts.total)
     LedgerSheet(Modifier.padding(horizontal = AppSpace.page)) {
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
-            val amountIn = { state: DueState -> data.entries.zip(states).filter { it.second == state }.sumOf { it.first.amount } }
-            val percent = (data.progress * 100).toInt()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Recebido em $month", style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
@@ -140,28 +141,18 @@ private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPaymen
                 }
                 Spacer(Modifier.width(14.dp))
                 StatusRing(
-                    segments = listOf(
-                        RingSegment(shareOf(amountIn(DueState.PAID), data.expected), ringColor(StatusKind.SUCCESS)),
-                        RingSegment(shareOf(amountIn(DueState.REVIEW), data.expected), ringColor(StatusKind.INFO)),
-                        RingSegment(shareOf(amountIn(DueState.OVERDUE), data.expected), ringColor(StatusKind.ERROR))
-                    ),
-                    description = if (data.expected > 0) "$percent% do previsto recebido em $month" else "Nenhum aluguel previsto",
+                    segments = ringOf(stats),
+                    description = if (counts.total > 0) "${counts.paid} de ${counts.total} aluguéis pagos em $month, " +
+                        "${counts.upcoming} a vencer e ${counts.overdue} em atraso" else "Nenhum aluguel previsto",
                     size = 92.dp, stroke = 10.dp
-                ) { RingLabel(if (data.expected > 0) "$percent%" else "—", 92.dp, caption = "recebido") }
+                ) { RingLabel(if (counts.total > 0) "$percent%" else "—", 92.dp, caption = "pagos") }
             }
             Spacer(Modifier.height(18.dp))
             if (data.tenantCount == 0) {
                 Text("Cadastre inquilinos em Locações para acompanhar o mês.", style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant)
             } else {
-                val review = states.count { it == DueState.REVIEW }
-                StatTiles(listOfNotNull(
-                    StatCount(paid, if (paid == 1) "pago" else "pagos", ringColor(StatusKind.SUCCESS)),
-                    StatCount(states.count { it == DueState.UPCOMING || it == DueState.DUE_TODAY }, "a vencer",
-                        ringColor(StatusKind.WARNING), hollow = true),
-                    StatCount(states.count { it == DueState.OVERDUE }, "em atraso", ringColor(StatusKind.ERROR), emphasize = true),
-                    if (review > 0) StatCount(review, "em análise", ringColor(StatusKind.INFO)) else null
-                ))
+                StatTiles(stats)
             }
         }
         LedgerRule()

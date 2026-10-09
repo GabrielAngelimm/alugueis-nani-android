@@ -137,6 +137,19 @@ internal fun ValidationResult.markLabel(): Pair<String, StatusKind> = when (stat
     PaymentStatus.PENDENTE_ATRASADO -> "Em atraso" to StatusKind.ERROR
 }
 
+/** Results grouped by the mark their cards show: paid in any form, still open, or late. */
+@Composable
+internal fun statementStats(results: List<ValidationResult>): List<StatCount> {
+    val byKind = results.groupingBy { it.markLabel().second }.eachCount()
+    val paid = byKind[StatusKind.SUCCESS] ?: 0
+    val open = byKind[StatusKind.WARNING] ?: 0
+    return listOf(
+        StatCount(paid, if (paid == 1) "pago" else "pagos", ringColor(StatusKind.SUCCESS)),
+        StatCount(open, if (open == 1) "pendente" else "pendentes", ringColor(StatusKind.WARNING)),
+        StatCount(byKind[StatusKind.ERROR] ?: 0, "em atraso", ringColor(StatusKind.ERROR), emphasize = true)
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ValidationResults(results: List<ValidationResult>, period: YearMonth, onReset: () -> Unit,
@@ -156,23 +169,15 @@ internal fun ValidationResults(results: List<ValidationResult>, period: YearMont
                     TextButton(onClick = onReset) { Text("Novo", style = MaterialTheme.typography.labelLarge) }
                 }
                 Spacer(Modifier.height(10.dp))
-                // The ring shows how much of what is due was found, capped per tenant; partial payments keep their own ink.
-                val found = { kind: StatusKind -> results.filter { it.markLabel().second == kind }.sumOf { minOf(it.amountPaid, it.amountDue) } }
-                val percent = (shareOf(results.sumOf { minOf(it.amountPaid, it.amountDue) }, due) * 100).toInt()
-                val late = results.count { it.markLabel().second == StatusKind.ERROR }
+                // Counted per tenant from the same mark each result card shows, so ring, legend and cards agree.
+                val stats = statementStats(results)
+                val percent = percentOf(paid, results.size)
                 LedgerSheet {
                     Row(Modifier.padding(start = 14.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        StatusRing(
-                            segments = listOf(
-                                RingSegment(shareOf(found(StatusKind.SUCCESS), due), ringColor(StatusKind.SUCCESS)),
-                                RingSegment(shareOf(found(StatusKind.WARNING), due), ringColor(StatusKind.WARNING)),
-                                RingSegment(shareOf(found(StatusKind.ERROR), due), ringColor(StatusKind.ERROR))
-                            ),
-                            description = "$percent% do valor devido identificado no extrato",
-                            size = 64.dp, stroke = 7.dp
-                        ) { RingLabel(if (due > 0) "$percent%" else "—", 64.dp) }
+                        StatusRing(ringOf(stats), "$paid de ${results.size} pagamentos identificados no extrato",
+                            size = 64.dp, stroke = 7.dp) { RingLabel(if (results.isNotEmpty()) "$percent%" else "—", 64.dp) }
                         Spacer(Modifier.width(14.dp))
-                        TallyText("Identificado no extrato", identified, due, "$paid de ${results.size} pagos", late, Modifier.weight(1f))
+                        TallyText("Identificado no extrato", identified, due, stats, Modifier.weight(1f))
                     }
                 }
             }

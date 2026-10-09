@@ -92,29 +92,21 @@ fun StatusRing(
             val arcSize = Size(diameter, diameter)
             val radius = diameter / 2f
             drawArc(track, 0f, 360f, useCenter = false, topLeft = topLeft, size = arcSize, style = Stroke(strokePx))
-            // Round ends extend each arc by half the stroke; subtract them so neighbours keep a clean gap.
             val capDegrees = Math.toDegrees((strokePx / 2f / radius).toDouble()).toFloat()
             val gapDegrees = Math.toDegrees((3.dp.toPx() / radius).toDouble()).toFloat()
-            val visible = segments.indices.filter { fractions[it] > .0005f }
-            var start = -90f
-            visible.forEach { index ->
-                val sweep = 360f * fractions[index] * reveal.value
+            ringMarks(fractions.map { it * reveal.value }, capDegrees, gapDegrees).forEachIndexed { index, mark ->
                 val color = segments[index].color
-                when {
-                    visible.size == 1 && sweep >= 359.5f ->
-                        drawArc(color, start, 360f, false, topLeft, arcSize, style = Stroke(strokePx))
-                    sweep - 2 * capDegrees - gapDegrees > 0f ->
-                        drawArc(color, start + capDegrees + gapDegrees / 2f, sweep - 2 * capDegrees - gapDegrees, false,
-                            topLeft, arcSize, style = Stroke(strokePx, cap = StrokeCap.Round))
-                    sweep > 0f -> {
-                        // Too small for an arc: a dot keeps the share visible without overlapping its neighbours.
-                        val angle = Math.toRadians((start + sweep / 2f).toDouble())
+                when (mark) {
+                    is RingMark.Arc -> drawArc(color, mark.start, mark.sweep, false, topLeft, arcSize,
+                        style = Stroke(strokePx, cap = if (mark.round) StrokeCap.Round else StrokeCap.Butt))
+                    is RingMark.Dot -> {
+                        val angle = Math.toRadians(mark.angle.toDouble())
                         val centerPoint = Offset(this.size.width / 2f + radius * cos(angle).toFloat(),
                             this.size.height / 2f + radius * sin(angle).toFloat())
-                        drawCircle(color, strokePx / 2f * (sweep / (2 * capDegrees + gapDegrees)).coerceIn(.6f, 1f), centerPoint)
+                        drawCircle(color, strokePx / 2f * mark.scale, centerPoint)
                     }
+                    null -> Unit
                 }
-                start += sweep
             }
         }
         if (center != null) Box(Modifier.clearAndSetSemantics { }, contentAlignment = Alignment.Center, content = center)
@@ -192,3 +184,76 @@ fun RingLegend(stats: List<StatCount>, modifier: Modifier = Modifier) {
 
 /** Fractions of a total, guarding against an empty total. */
 fun shareOf(part: Double, total: Double): Float = if (total <= 0.0) 0f else (part / total).toFloat().coerceIn(0f, 1f)
+
+/** Each count as a fraction of their sum, in the same order; all zeros when there is nothing to count. */
+fun countShares(counts: List<Int>): List<Float> {
+    val total = counts.sumOf { it.coerceAtLeast(0) }
+    return counts.map { if (total == 0) 0f else it.coerceAtLeast(0).toFloat() / total }
+}
+
+/** Whole percent of [part] in [total], rounded to the nearest unit (2 of 3 is 67%). */
+fun percentOf(part: Int, total: Int): Int = if (total <= 0) 0 else Math.round(part * 100f / total)
+
+/** One drawn piece of a ring. Angles follow Canvas: degrees clockwise from three o'clock. */
+internal sealed interface RingMark {
+    data class Arc(val start: Float, val sweep: Float, val round: Boolean) : RingMark
+    data class Dot(val angle: Float, val scale: Float) : RingMark
+}
+
+/**
+ * Lays [fractions] clockwise from twelve o'clock. Each share owns exactly 360° × fraction of the
+ * circle. What is drawn (the arc plus its round ends) covers that span minus one gap, so shares
+ * of the same size always look the same size. A share too small for an arc becomes a dot, and a
+ * single share of the whole is a closed circle. Results are aligned with [fractions]; empty shares are null.
+ */
+internal fun ringMarks(fractions: List<Float>, capDegrees: Float, gapDegrees: Float): List<RingMark?> {
+    val shares = fractions.map { it.coerceIn(0f, 1f) }
+    val visible = shares.count { it > .0005f }
+    var start = -90f
+    return shares.map { share ->
+        if (share <= .0005f) return@map null
+        val span = 360f * share
+        val mark = when {
+            visible == 1 && span >= 359.5f -> RingMark.Arc(start, 360f, round = false)
+            span - 2 * capDegrees - gapDegrees > 0f ->
+                RingMark.Arc(start + capDegrees + gapDegrees / 2f, span - 2 * capDegrees - gapDegrees, round = true)
+            else -> RingMark.Dot(start + span / 2f, (span / (2 * capDegrees + gapDegrees)).coerceIn(.6f, 1f))
+        }
+        start += span
+        mark
+    }
+}
+
+/** How many rents of a month are in each state. Rents due today count as still to come. */
+data class DueCounts(val paid: Int, val upcoming: Int, val overdue: Int, val review: Int) {
+    val total: Int get() = paid + upcoming + overdue + review
+}
+
+fun dueCounts(states: List<DueState>): DueCounts = DueCounts(
+    paid = states.count { it == DueState.PAID },
+    upcoming = states.count { it == DueState.UPCOMING || it == DueState.DUE_TODAY },
+    overdue = states.count { it == DueState.OVERDUE },
+    review = states.count { it == DueState.REVIEW }
+)
+
+/**
+ * The month's states in one fixed order, each with its label and ink. The ring, the counters and
+ * the legends are all built from this list, so a color, a label and a count can never disagree.
+ * "Em análise" is listed only when it occurs, so the usual three counters stay uncluttered.
+ */
+@Composable
+fun dueStats(counts: DueCounts): List<StatCount> = listOfNotNull(
+    StatCount(counts.paid, if (counts.paid == 1) "pago" else "pagos", ringColor(StatusKind.SUCCESS)),
+    StatCount(counts.upcoming, "a vencer", ringColor(StatusKind.WARNING)),
+    StatCount(counts.overdue, "em atraso", ringColor(StatusKind.ERROR), emphasize = true),
+    if (counts.review > 0) StatCount(counts.review, "em análise", ringColor(StatusKind.INFO)) else null
+)
+
+/**
+ * Ring segments for a set of counters: each share is the counter's part of all items, in the same
+ * order and ink. A hollow counter ("sem contrato") counts toward the whole but is left as track,
+ * matching its hollow marker in the legend.
+ */
+fun ringOf(stats: List<StatCount>): List<RingSegment> =
+    countShares(stats.map { it.count }).zip(stats).filter { !it.second.hollow }
+        .map { (share, stat) -> RingSegment(share, stat.color) }

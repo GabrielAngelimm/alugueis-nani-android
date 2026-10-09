@@ -126,12 +126,17 @@ internal fun UnitDetails(
             NaniDetailHero(
                 title = unitName,
                 subtitle = realUnit?.location?.ifBlank { "Endereço não informado" } ?: "Agrupamento de inquilinos",
-                // Occupancy is told by the panel above; the facts carry what the unit brings in.
+                // What the unit brings in and how full it is; free places and the mark sit just above.
                 firstLabel = "Aluguéis por mês", firstValue = CurrencyUtils.format(tenants.sumOf { it.amount }),
-                secondLabel = if (realUnit != null) "Condomínio" else stringResource(R.string.tenants),
-                secondValue = if (realUnit != null) realUnit.condominiumFee?.let { CurrencyUtils.format(it) } ?: "Não informado"
-                    else tenants.size.toString(),
-                status = realUnit?.let { unit -> { OccupancyPanel(unit, ringSize = 56.dp) } },
+                secondLabel = stringResource(R.string.tenants),
+                secondValue = realUnit?.let { "${it.tenantCount} de ${it.capacity}" } ?: tenants.size.toString(),
+                status = realUnit?.let { unit -> {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind())
+                        Text(unit.vacancySentence(), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } },
                 compact = true,
                 subtitleIcon = Icons.Rounded.LocationOn,
                 identity = DetailIdentity.UNIT
@@ -165,6 +170,8 @@ internal fun UnitDetails(
                     OperationalStatus.MAINTENANCE -> "Em manutenção"
                     null -> "Não informado"
                 })
+                // Most units are houses without a condominium fee, so the line appears only when one is recorded.
+                realUnit?.condominiumFee?.let { CopyableFact("Condomínio", CurrencyUtils.format(it)) }
                 CopyableFact("Observações", realUnit?.notes?.ifBlank { "Não informado" } ?: "Não informado")
                 val contracts = tenants.count { it.contractPath.isNotBlank() }
                 val inspections = tenants.count { it.inspectionPath.isNotBlank() }

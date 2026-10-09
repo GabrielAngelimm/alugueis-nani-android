@@ -1,5 +1,15 @@
 # Validação da revisão
 
+## Correção dos anéis (9 de outubro de 2026)
+
+Os anéis do Início, de Receber (Mensal e Conferir extrato) mediam valores em reais e deixavam "a vencer" como trilho, enquanto os números ao lado contavam inquilinos; com aluguéis diferentes, as fatias não correspondiam às quantidades. Todos passaram a contar itens a partir de uma única lista que também gera contadores e legendas; o percentual central é a parcela de pagos. Docs já contava corretamente e passou a usar a mesma lista. Os anéis de ocupação foram retirados dos cards e dos detalhes das unidades.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **44 testes** (8 novos em `RingMathTest`: frações por contagem, fatias iguais desenhadas iguais, proporções, percentuais e contagem por estado) |
+| Testes instrumentados | **48 testes**, todos passaram |
+| Inspeção visual | Anéis, legendas e contadores conferidos entre si; fileira de moradores revisada ampliada nos dois temas |
+
 ## Navegação, anéis e tamanho de texto (8 de outubro de 2026)
 
 A barra de navegação passou a ser uma cápsula flutuante; as réguas de progresso foram substituídas por anéis com contagens; a seção de documentos passou a se chamar Docs; e o texto do aplicativo deixou de acompanhar o tamanho de fonte do sistema. Também foi corrigido o texto preto no tema escuro do aplicativo real, causado pela troca do `Scaffold` por uma `Box` sem cor de conteúdo.

@@ -156,31 +156,32 @@ internal fun RentalUnit.vacancySentence(): String {
     }
 }
 
+/** "3 de 4 inquilinos, 1 lugar livre" for a unit; a plain count for a group without a registered unit. */
+internal fun residentsSentence(unit: RentalUnit?, people: Int): String =
+    if (unit == null) "$people ${if (people == 1) "inquilino" else "inquilinos"}"
+    else "${unit.tenantCount} de ${unit.capacity} ${unit.capacityKind.noun(unit.capacity)}, ${unit.vacancySentence().replaceFirstChar { it.lowercase() }}"
+
 /**
- * How full a unit is: a ring with the occupied share, the count beside it and how many places
- * are free. The ring takes the ink of the occupancy mark, so "full" and "has vacancies" read alike everywhere.
+ * Who lives in a unit: their monograms side by side with a dashed seat for each free place, the
+ * occupancy mark, and the same facts in one sentence below for reading and for TalkBack.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun OccupancyPanel(unit: RentalUnit, modifier: Modifier = Modifier, ringSize: Dp = 52.dp) {
+internal fun UnitResidents(unit: RentalUnit?, names: List<String>, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    val kind = if (unit.tenantCount > unit.capacity) StatusKind.ERROR else unit.occupancyStatus.badgeKind()
-    val ink = if (kind == StatusKind.NEUTRAL) colors.outline else ringColor(kind)
-    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLow)
-        .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StatusRing(listOf(RingSegment(shareOf(unit.tenantCount.toDouble(), unit.capacity.toDouble()), ink)),
-            "${unit.tenantCount} de ${unit.capacity} ${unit.capacityKind.noun(unit.capacity)} ocupados",
-            size = ringSize, stroke = 6.dp) { RingLabel("${unit.tenantCount}/${unit.capacity}", ringSize) }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${unit.tenantCount} de ${unit.capacity} ${unit.capacityKind.noun(unit.capacity)}", style = MaterialTheme.typography.titleSmall)
-            // The mark rides with the sentence and drops to its own line before it would be cut.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(unit.vacancySentence(), Modifier.align(Alignment.CenterVertically), style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant)
-                StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind())
-            }
+    val panel = colors.surfaceContainerLow
+    val occupied = unit?.tenantCount ?: names.size
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(panel).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ResidentsPile(names, vacancies = unit?.let { it.capacity - it.tenantCount } ?: 0,
+                Modifier.align(Alignment.CenterVertically), occupied = occupied, size = 32.dp, ring = panel,
+                maxFaces = 4, maxSeats = 2)
+            if (unit != null) StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind(),
+                Modifier.align(Alignment.CenterVertically))
         }
+        Text(residentsSentence(unit, occupied), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
     }
 }
 
@@ -204,7 +205,8 @@ private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, o
                 }
                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(22.dp), tint = colors.onSurfaceVariant)
             }
-            if (unit != null) OccupancyPanel(unit, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp))
+            if (unit != null || tenants.isNotEmpty())
+                UnitResidents(unit, tenants.map { it.name }, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp))
             LedgerRule()
             Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 16.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {
