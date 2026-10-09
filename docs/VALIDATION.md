@@ -1,5 +1,19 @@
 # Validação da revisão
 
+## Navegação, anéis e tamanho de texto (8 de outubro de 2026)
+
+A barra de navegação passou a ser uma cápsula flutuante; as réguas de progresso foram substituídas por anéis com contagens; a seção de documentos passou a se chamar Docs; e o texto do aplicativo deixou de acompanhar o tamanho de fonte do sistema. Também foi corrigido o texto preto no tema escuro do aplicativo real, causado pela troca do `Scaffold` por uma `Box` sem cor de conteúdo.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **36 testes**, sem falhas |
+| Testes instrumentados (emulador API 37) | **48 testes**, todos passaram (2 novos: cor do texto do esqueleto real no tema escuro e trava do tamanho de fonte) |
+| Trava de fonte | Com `font_scale` do sistema em 1,5, a Activity manteve escala 1,0 e idioma pt-BR; o emulador voltou a 1,0 depois |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Barra, anéis e telas em tema claro e escuro revisados nas capturas dos testes |
+
+Os testes de interface montam as telas dentro de um `Scaffold` próprio, que define a cor do conteúdo; por isso o texto preto não aparecia neles. O novo teste usa o esqueleto real do aplicativo.
+
 ## Redesign da interface (7 de outubro de 2026)
 
 A camada de apresentação foi reconstruída com o design system "Caderneta" ([DESIGN.md](../DESIGN.md)). Banco, repositórios, backups, regras de conferência, lembretes e integrações não foram alterados; o ViewModel mensal passou apenas a expor, para leitura, os estados do ano já carregados.

@@ -81,7 +81,7 @@ fun MonthlyGridScreen(viewModel: MonthlyGridViewModel = hiltViewModel(), tenantI
                 }
             }
         }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationClearance.current)) {
             stickyHeader {
                 Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
                     MonthSwitcher("${getMonthName(state.month)} ${state.year}", viewModel::previousMonth, viewModel::nextMonth) { showPicker = true }
@@ -147,24 +147,44 @@ private fun MonthTally(items: List<TenantPaymentItem>, period: YearMonth, modifi
     val today = LocalDate.now()
     val states = items.map { dueState(it.payment?.status, period, it.tenant.dueDay, today) }
     val paidCount = states.count { it == DueState.PAID }
-    val received = items.zip(states).filter { it.second == DueState.PAID }.sumOf { it.first.tenant.amount }
+    val amountIn = { state: DueState -> items.zip(states).filter { it.second == state }.sumOf { it.first.tenant.amount } }
+    val received = amountIn(DueState.PAID)
     val expected = items.sumOf { it.tenant.amount }
+    val overdue = states.count { it == DueState.OVERDUE }
+    val percent = (shareOf(received, expected) * 100).toInt()
     LedgerSheet(modifier) {
-        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f)) {
-                    Text("Recebido", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FittingText(CurrencyUtils.format(received), NaniType.moneyLarge)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("$paidCount de ${items.size} pagos", style = MaterialTheme.typography.labelMedium, color = NaniTheme.colors.paid.ink)
-                    Text("de ${CurrencyUtils.format(expected)}", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Regua(items.zip(states).map { (item, state) -> ReguaPart(item.tenant.amount.toFloat(), state.kind()) },
-                "$paidCount de ${items.size} aluguéis recebidos", height = 10.dp)
+        Row(Modifier.padding(start = 14.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusRing(
+                segments = listOf(
+                    RingSegment(shareOf(received, expected), ringColor(StatusKind.SUCCESS)),
+                    RingSegment(shareOf(amountIn(DueState.REVIEW), expected), ringColor(StatusKind.INFO)),
+                    RingSegment(shareOf(amountIn(DueState.OVERDUE), expected), ringColor(StatusKind.ERROR))
+                ),
+                description = "$percent% do previsto recebido",
+                size = 64.dp, stroke = 7.dp
+            ) { RingLabel(if (expected > 0) "$percent%" else "—", 64.dp) }
+            Spacer(Modifier.width(14.dp))
+            TallyText("Recebido", received, expected, "$paidCount de ${items.size} pagos", overdue, Modifier.weight(1f))
+        }
+    }
+}
+
+/**
+ * The words beside a month's ring: the amount in, what was expected and the counts. The
+ * secondary facts flow as whole pieces, so enlarged type wraps them without splitting a value.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun TallyText(label: String, amount: Double, expected: Double, paidLine: String, late: Int, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FittingText(CurrencyUtils.format(amount), NaniType.moneyLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("de ${CurrencyUtils.format(expected)}", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, softWrap = false)
+            Text(paidLine, style = MaterialTheme.typography.labelMedium, color = NaniTheme.colors.paid.ink, softWrap = false)
+            if (late > 0) Text("$late em atraso", style = MaterialTheme.typography.labelMedium,
+                color = NaniTheme.colors.overdue.ink, softWrap = false)
         }
     }
 }

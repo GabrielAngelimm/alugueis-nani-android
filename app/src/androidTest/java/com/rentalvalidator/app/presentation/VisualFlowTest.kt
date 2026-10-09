@@ -197,6 +197,24 @@ class VisualFlowTest {
         shot("dashboard-compact-overview")
     }
 
+    /** The production shell, not this harness's Scaffold, must give page text the theme's ink. */
+    @Test fun appShellInksPageTextForTheNightTheme() {
+        var ink = androidx.compose.ui.graphics.Color.Unspecified
+        var expected = androidx.compose.ui.graphics.Color.Unspecified
+        compose.setContent {
+            RentalValidatorTheme(darkTheme = true) {
+                com.rentalvalidator.app.presentation.navigation.NaniScaffold(null, {}) {
+                    ink = LocalContentColor.current
+                    expected = MaterialTheme.colorScheme.onBackground
+                    Text("Histórico de recebimentos")
+                }
+            }
+        }
+        compose.waitForIdle()
+        Assert.assertEquals(expected, ink)
+        Assert.assertNotEquals(androidx.compose.ui.graphics.Color.Black, ink)
+    }
+
     @Test fun dashboardListsOpenRentsAndOpensTheTenantsPayments() {
         launch()
         compose.waitUntil(10_000) { tenants.tenants.value.size == 3 && tenants.recentPayments.value.isNotEmpty() }

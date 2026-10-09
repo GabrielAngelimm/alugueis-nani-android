@@ -7,7 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.FactCheck
 import androidx.compose.material.icons.rounded.EventBusy
-import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Cottage
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +24,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.rentalvalidator.app.R
 import com.rentalvalidator.app.domain.model.PaymentStatus
+import com.rentalvalidator.app.presentation.components.LocalNavigationClearance
 import com.rentalvalidator.app.presentation.design.*
 import com.rentalvalidator.app.presentation.theme.AppSpace
 import com.rentalvalidator.app.presentation.theme.NaniTheme
@@ -62,7 +63,7 @@ fun OverviewContent(
     val states = remember(data.entries, data.period, data.today) {
         data.entries.map { it to dueState(it.status, data.period, it.dueDay, data.today) }
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp + LocalNavigationClearance.current)) {
         item {
             Row(Modifier.fillMaxWidth().padding(start = AppSpace.page, end = 8.dp, top = 24.dp, bottom = 20.dp),
                 verticalAlignment = Alignment.Top) {
@@ -99,7 +100,7 @@ fun OverviewContent(
                 LedgerRule(Modifier.padding(start = 70.dp))
                 NaniActionRow("Gerenciar locações",
                     "${data.unitCount} ${if (data.unitCount == 1) "unidade" else "unidades"} e ${data.tenantCount} ${if (data.tenantCount == 1) "inquilino" else "inquilinos"}",
-                    Icons.Rounded.Key, onTenants)
+                    Icons.Rounded.Cottage, onTenants)
                 if (data.contractAlerts > 0) {
                     LedgerRule(Modifier.padding(start = 70.dp))
                     NaniActionRow("Revisar contratos",
@@ -126,32 +127,40 @@ private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPaymen
     val month = data.period.monthInSentence()
     val paid = states.count { it == DueState.PAID }
     LedgerSheet(Modifier.padding(horizontal = AppSpace.page)) {
-        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 18.dp)) {
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
+            val amountIn = { state: DueState -> data.entries.zip(states).filter { it.second == state }.sumOf { it.first.amount } }
+            val percent = (data.progress * 100).toInt()
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Recebido em $month", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
-                    color = colors.onSurfaceVariant)
-                if (data.expected > 0) Text("${(data.progress * 100).toInt()}% do previsto",
-                    style = MaterialTheme.typography.labelMedium, color = NaniTheme.colors.paid.ink)
+                Column(Modifier.weight(1f)) {
+                    Text("Recebido em $month", style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    FittingText(CurrencyUtils.format(data.received), NaniType.moneyHero)
+                    Text("de ${CurrencyUtils.format(data.expected)} previstos", style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant)
+                }
+                Spacer(Modifier.width(14.dp))
+                StatusRing(
+                    segments = listOf(
+                        RingSegment(shareOf(amountIn(DueState.PAID), data.expected), ringColor(StatusKind.SUCCESS)),
+                        RingSegment(shareOf(amountIn(DueState.REVIEW), data.expected), ringColor(StatusKind.INFO)),
+                        RingSegment(shareOf(amountIn(DueState.OVERDUE), data.expected), ringColor(StatusKind.ERROR))
+                    ),
+                    description = if (data.expected > 0) "$percent% do previsto recebido em $month" else "Nenhum aluguel previsto",
+                    size = 92.dp, stroke = 10.dp
+                ) { RingLabel(if (data.expected > 0) "$percent%" else "—", 92.dp, caption = "recebido") }
             }
-            Spacer(Modifier.height(6.dp))
-            FittingText(CurrencyUtils.format(data.received), NaniType.moneyHero)
-            Text("de ${CurrencyUtils.format(data.expected)} previstos", style = MaterialTheme.typography.bodyMedium,
-                color = colors.onSurfaceVariant)
             Spacer(Modifier.height(18.dp))
             if (data.tenantCount == 0) {
-                Regua(emptyList(), "Nenhum aluguel previsto")
-                Spacer(Modifier.height(10.dp))
                 Text("Cadastre inquilinos em Locações para acompanhar o mês.", style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant)
             } else {
-                Regua(data.entries.zip(states).map { (entry, state) -> ReguaPart(entry.amount.toFloat(), state.kind()) },
-                    "$paid de ${data.tenantCount} aluguéis recebidos em $month")
-                Spacer(Modifier.height(12.dp))
-                ReguaLegend(listOf(
-                    Triple(StatusKind.SUCCESS, paid, if (paid == 1) "pago" else "pagos"),
-                    Triple(StatusKind.INFO, states.count { it == DueState.REVIEW }, "em análise"),
-                    Triple(StatusKind.ERROR, states.count { it == DueState.OVERDUE }, "em atraso"),
-                    Triple(StatusKind.WARNING, states.count { it == DueState.UPCOMING || it == DueState.DUE_TODAY }, "a vencer")
+                val review = states.count { it == DueState.REVIEW }
+                StatTiles(listOfNotNull(
+                    StatCount(paid, if (paid == 1) "pago" else "pagos", ringColor(StatusKind.SUCCESS)),
+                    StatCount(states.count { it == DueState.UPCOMING || it == DueState.DUE_TODAY }, "a vencer",
+                        ringColor(StatusKind.WARNING), hollow = true),
+                    StatCount(states.count { it == DueState.OVERDUE }, "em atraso", ringColor(StatusKind.ERROR), emphasize = true),
+                    if (review > 0) StatCount(review, "em análise", ringColor(StatusKind.INFO)) else null
                 ))
             }
         }

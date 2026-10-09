@@ -26,7 +26,9 @@ import com.rentalvalidator.app.domain.model.Tenant
 import com.rentalvalidator.app.domain.usecase.PaymentStatus
 import com.rentalvalidator.app.domain.usecase.ValidationResult
 import com.rentalvalidator.app.presentation.components.PrimaryButton
+import com.rentalvalidator.app.presentation.components.LocalNavigationClearance
 import com.rentalvalidator.app.presentation.design.*
+import com.rentalvalidator.app.presentation.ui.monthly_grid.TallyText
 import com.rentalvalidator.app.presentation.theme.AppSpace
 import com.rentalvalidator.app.presentation.theme.NaniSerifText
 import com.rentalvalidator.app.presentation.theme.NaniTheme
@@ -38,7 +40,7 @@ import java.time.YearMonth
 /** The three steps of checking a statement, in the order they are done. */
 @Composable
 internal fun ValidatorIdle(state: ValidatorState.Idle, period: YearMonth, onPeriod: () -> Unit, onFile: () -> Unit, onClear: () -> Unit, onValidate: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationClearance.current)) {
         item {
             Column(Modifier.padding(horizontal = AppSpace.page).padding(top = 16.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -142,7 +144,7 @@ internal fun ValidationResults(results: List<ValidationResult>, period: YearMont
     val paid = results.count { it.status.isPaid }
     val identified = results.sumOf { it.amountPaid }
     val due = results.sumOf { it.amountDue }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationClearance.current)) {
         stickyHeader {
             Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = AppSpace.page).padding(top = 10.dp, bottom = 12.dp)) {
@@ -154,24 +156,23 @@ internal fun ValidationResults(results: List<ValidationResult>, period: YearMont
                     TextButton(onClick = onReset) { Text("Novo", style = MaterialTheme.typography.labelLarge) }
                 }
                 Spacer(Modifier.height(10.dp))
+                // The ring shows how much of what is due was found, capped per tenant; partial payments keep their own ink.
+                val found = { kind: StatusKind -> results.filter { it.markLabel().second == kind }.sumOf { minOf(it.amountPaid, it.amountDue) } }
+                val percent = (shareOf(results.sumOf { minOf(it.amountPaid, it.amountDue) }, due) * 100).toInt()
+                val late = results.count { it.markLabel().second == StatusKind.ERROR }
                 LedgerSheet {
-                    Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Identificado no extrato", style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                FittingText(CurrencyUtils.format(identified), NaniType.moneyLarge)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("$paid de ${results.size} pagos", style = MaterialTheme.typography.labelMedium,
-                                    color = NaniTheme.colors.paid.ink)
-                                Text("de ${CurrencyUtils.format(due)}", style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Regua(results.map { ReguaPart(it.amountDue.toFloat(), it.markLabel().second) },
-                            "$paid de ${results.size} pagamentos identificados", height = 10.dp)
+                    Row(Modifier.padding(start = 14.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        StatusRing(
+                            segments = listOf(
+                                RingSegment(shareOf(found(StatusKind.SUCCESS), due), ringColor(StatusKind.SUCCESS)),
+                                RingSegment(shareOf(found(StatusKind.WARNING), due), ringColor(StatusKind.WARNING)),
+                                RingSegment(shareOf(found(StatusKind.ERROR), due), ringColor(StatusKind.ERROR))
+                            ),
+                            description = "$percent% do valor devido identificado no extrato",
+                            size = 64.dp, stroke = 7.dp
+                        ) { RingLabel(if (due > 0) "$percent%" else "—", 64.dp) }
+                        Spacer(Modifier.width(14.dp))
+                        TallyText("Identificado no extrato", identified, due, "$paid de ${results.size} pagos", late, Modifier.weight(1f))
                     }
                 }
             }
