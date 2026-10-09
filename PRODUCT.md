@@ -9,7 +9,7 @@ O Aluguéis Nani ajuda na organização cotidiana dos aluguéis de uma repúblic
 | Início | Resumir pagamentos, ocupação e estimativas mensais |
 | Locações | Criar, editar e excluir moradores; administrar unidades |
 | Receber | Consultar competências e registrar estados de pagamento; conferir PDF/CSV |
-| Documentos | Anexar e abrir contratos e vistorias; registrar datas relacionadas |
+| Docs | Anexar e abrir contratos e vistorias; registrar datas relacionadas |
 | Configurações | Preferências, backups completos e importação/exportação JSON de versões antigas |
 
 Os dados são locais. O aplicativo não envia mensagens, não processa pagamentos e não consulta contas bancárias.

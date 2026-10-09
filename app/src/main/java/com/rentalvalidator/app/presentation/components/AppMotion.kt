@@ -6,8 +6,10 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 
@@ -34,4 +36,15 @@ object AppMotion {
     val PageSlide: FiniteAnimationSpec<IntOffset> = tween(durationMillis = PageDuration, easing = Settle)
     val ExpandVertically: FiniteAnimationSpec<IntSize> = tween(durationMillis = LayoutDuration, easing = Settle)
     val CollapseVertically: FiniteAnimationSpec<IntSize> = tween(durationMillis = 180, easing = FastOutLinearInEasing)
+
+    /** A unit card unfolding its residents: slower than a plain row, so the portraits can be followed. */
+    const val FoldDuration = 340
+    val FoldOpen: FiniteAnimationSpec<IntSize> = tween(durationMillis = FoldDuration, easing = Settle)
+    /** Closing follows the portraits' own spring, so the card never folds past a face still on its way up. */
+    val FoldClose: FiniteAnimationSpec<IntSize> = spring(dampingRatio = 1f, stiffness = 300f,
+        visibilityThreshold = IntSize.VisibilityThreshold)
+
+    /** Portraits travelling between the pile and the rows glide in and land without bouncing. */
+    val Travel: FiniteAnimationSpec<Rect> = spring(dampingRatio = .9f, stiffness = 300f,
+        visibilityThreshold = Rect.VisibilityThreshold)
 }

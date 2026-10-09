@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.R
 import com.rentalvalidator.app.domain.model.*
 import com.rentalvalidator.app.presentation.components.rememberAppSnackbar
+import com.rentalvalidator.app.presentation.components.LocalNavigationClearance
 import com.rentalvalidator.app.presentation.design.*
 import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.AppSpace
@@ -48,7 +49,7 @@ internal fun TenantDetails(
         }
     }
     BackHandler(onBack = onBack)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp + LocalNavigationClearance.current)) {
         item {
             NaniHeader(stringResource(R.string.tenant), onBack = onBack) {
                 IconButton(onClick = onDelete) { Icon(Icons.Rounded.DeleteOutline, "Excluir inquilino", tint = MaterialTheme.colorScheme.error) }
@@ -114,8 +115,7 @@ internal fun UnitDetails(
         icon = Icons.Rounded.DeleteOutline
     )
     BackHandler(onBack = onBack)
-    val capacity = realUnit?.let { "${it.capacity} ${it.capacityKind.noun(it.capacity)}" } ?: "Não informada"
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp + LocalNavigationClearance.current)) {
         item {
             NaniHeader(stringResource(R.string.unit), onBack = onBack) {
                 if (realUnit != null) IconButton(onClick = { confirmDelete = true }) {
@@ -126,17 +126,13 @@ internal fun UnitDetails(
             NaniDetailHero(
                 title = unitName,
                 subtitle = realUnit?.location?.ifBlank { "Endereço não informado" } ?: "Agrupamento de inquilinos",
-                firstLabel = stringResource(R.string.tenants), firstValue = tenants.size.toString(),
-                secondLabel = "Capacidade", secondValue = capacity,
-                status = realUnit?.let { unit -> {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OccupancyMeter(unit.tenantCount, unit.capacity)
-                        StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind())
-                    }
-                } },
-                compact = true,
+                // What the unit brings in and how many tenants it holds against its capacity.
+                firstLabel = "Aluguéis por mês", firstValue = CurrencyUtils.format(tenants.sumOf { it.amount }),
+                secondLabel = stringResource(R.string.tenants),
+                secondValue = realUnit?.let { "${it.tenantCount} de ${it.capacity}" } ?: tenants.size.toString(),
                 subtitleIcon = Icons.Rounded.LocationOn,
-                identity = DetailIdentity.UNIT
+                identity = DetailIdentity.UNIT,
+                unitIcon = realUnit?.type?.glyph() ?: UnitGroupGlyph
             )
         }
         item {
@@ -160,7 +156,6 @@ internal fun UnitDetails(
             Spacer(Modifier.height(AppSpace.section))
             NaniDetailCard("Sobre a unidade") {
                 CopyableFact("Endereço", realUnit?.location?.ifBlank { "Não informado" } ?: "Não informado")
-                CopyableFact("Ocupação", realUnit?.occupancyStatus?.displayName() ?: "Não informada", copyEnabled = false)
                 CopyableFact("Tipo", realUnit?.type?.displayName() ?: "Não informado")
                 CopyableFact("Situação", when (realUnit?.operationalStatus) {
                     OperationalStatus.ACTIVE -> "Ativa"
@@ -168,7 +163,8 @@ internal fun UnitDetails(
                     OperationalStatus.MAINTENANCE -> "Em manutenção"
                     null -> "Não informado"
                 })
-                CopyableFact("Condomínio", realUnit?.condominiumFee?.let { CurrencyUtils.format(it) } ?: "Não informado")
+                // Most units are houses without a condominium fee, so the line appears only when one is recorded.
+                realUnit?.condominiumFee?.let { CopyableFact("Condomínio", CurrencyUtils.format(it)) }
                 CopyableFact("Observações", realUnit?.notes?.ifBlank { "Não informado" } ?: "Não informado")
                 val contracts = tenants.count { it.contractPath.isNotBlank() }
                 val inspections = tenants.count { it.inspectionPath.isNotBlank() }

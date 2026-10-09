@@ -33,9 +33,18 @@ class MainActivity : ComponentActivity() {
      * Every screen is written in Portuguese, so framework widgets (date picker, menus) follow
      * pt-BR as well instead of mixing in the device language. Number and date formats in the
      * app already use explicit pt-BR locales.
+     *
+     * Text is also pinned to the designed size: the system font-size setting does not scale it,
+     * so every screen keeps the proportions it was drawn with. This is applied to the activity
+     * configuration rather than inside Compose so that sheets, dialogs and pickers, which open
+     * in windows of their own, follow it too. The display-size setting still scales the whole
+     * interface evenly, which keeps proportions intact.
      */
     override fun attachBaseContext(newBase: Context) {
-        val configuration = Configuration(newBase.resources.configuration).apply { setLocale(Locale.forLanguageTag("pt-BR")) }
+        val configuration = Configuration(newBase.resources.configuration).apply {
+            setLocale(Locale.forLanguageTag("pt-BR"))
+            fontScale = 1f
+        }
         super.attachBaseContext(newBase.createConfigurationContext(configuration))
     }
 

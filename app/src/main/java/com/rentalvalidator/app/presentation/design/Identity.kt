@@ -17,8 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +70,60 @@ fun UnitPlaque(name: String, modifier: Modifier = Modifier, size: Dp = 44.dp) {
 }
 
 private fun Modifier.matchParentSizeInset(size: Dp) = this.size(size).padding(size * .08f)
+
+/**
+ * A unit shown by what it is (house, apartment, building...) rather than by letters. The tile is
+ * the same tinted glass as the navigation lens: light from above and a fine rim.
+ */
+@Composable
+fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: Dp = 52.dp) {
+    val colors = MaterialTheme.colorScheme
+    val dark = NaniTheme.colors.isDark
+    val shape = RoundedCornerShape(size * .3f)
+    Box(modifier.size(size).clearAndSetSemantics { }.clip(shape)
+        .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
+            androidx.compose.ui.graphics.lerp(colors.primaryContainer, androidx.compose.ui.graphics.Color.White, if (dark) .06f else .2f),
+            colors.primaryContainer)))
+        .border(1.dp, colors.primary.copy(alpha = if (dark) .26f else .2f), shape),
+        contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(icon, null, Modifier.size(size * .48f), tint = colors.onPrimaryContainer)
+    }
+}
+
+/**
+ * The people of a unit at a glance: their monograms overlap like portraits on a fridge door.
+ * Only people who live there are shown, at most [maxFaces]; the rest are counted in a quiet
+ * "+N" pill. [face] lets a caller attach each portrait to a transition, keyed by its position.
+ */
+@Composable
+fun ResidentsPile(
+    names: List<String>,
+    modifier: Modifier = Modifier,
+    size: Dp = 34.dp,
+    ring: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    maxFaces: Int = 4,
+    face: @Composable (index: Int) -> Modifier = { Modifier }
+) {
+    val colors = MaterialTheme.colorScheme
+    val faces = names.take(maxFaces)
+    val hidden = names.size - faces.size
+    val overlap = size * .18f
+    val spoken = faces.joinToString(", ") + if (hidden > 0) " e mais $hidden" else ""
+    Row(modifier.clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(-overlap)) {
+        faces.forEachIndexed { index, name ->
+            // The ring sits on the portrait's own edge, so a portrait keeps one size whether it is
+            // stacked here or standing alone in a list, and can travel between the two.
+            Monogram(name, face(index).border(2.dp, ring, CircleShape), size = size)
+        }
+        if (hidden > 0) {
+            Text("+$hidden", Modifier.padding(start = overlap + 8.dp).clip(CircleShape)
+                .background(colors.surfaceContainerHigh).padding(horizontal = 9.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = colors.onSurfaceVariant, maxLines = 1)
+        }
+    }
+}
 
 /** Who an action sheet is about, repeated at the top so the person never acts on the wrong tenant. */
 @Composable

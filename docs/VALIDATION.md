@@ -1,5 +1,68 @@
 # Validação da revisão
 
+## Capa dos detalhes de inquilino e unidade (9 de outubro de 2026)
+
+O topo das páginas de detalhe deixou de empilhar ícone, nome e subtítulo em linhas separadas. Agora é um único cartão: uma capa azul com gravura derivada do nome, onde a marca, o nome e o subtítulo formam um só bloco, e logo abaixo os dois fatos principais. Os demais componentes das duas telas não mudaram.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **49 testes** (5 novos em `EngravingTest`: mesma gravura para o mesmo nome, nomes diferentes com gravuras diferentes, parâmetros dentro dos limites, linhas cobrindo toda a capa e cruzamento no sentido oposto) |
+| Testes instrumentados | **50 testes**, todos passaram (o teste de valores largos em 320dp passou a incluir um inquilino de nome e unidade longos) |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Capas de inquilino e unidade nos dois temas, nome longo e endereço longo em 320dp e texto ampliado, revisadas nas capturas dos testes |
+
+A primeira rodada revelou dois problemas, ambos corrigidos: no tema escuro, as linhas da gravura passavam da capa e apareciam sobre os fatos; e, em 320dp, o rótulo "Aluguéis por mês" quebrava em duas linhas e desnivelava os valores. Os rótulos passaram a ficar em uma linha com escala compartilhada, como os valores.
+
+## Moradores no card da unidade (8 de outubro de 2026)
+
+O cabeçalho do card passou a mostrar só o nome da unidade e o endereço; o tipo do imóvel e a marca de ocupação saíram. No rodapé, a fileira mostra até quatro moradores e conta os demais num "+N" discreto; as vagas livres tracejadas foram retiradas. Ao abrir o card, cada retrato da fileira se desloca até a linha do respectivo inquilino e os nomes entram em seguida; ao fechar, as linhas voltam a formar a fileira. A fileira também passou a ser lida pelo TalkBack ("Clara Nunes, Davi Rocha, ... e mais 2").
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **44 testes**, sem falhas |
+| Testes instrumentados | **50 testes**, todos passaram (1 novo: card com seis moradores mostra quatro retratos e "+2", sem tipo nem marca; abre com todos os nomes e fecha de volta à fileira) |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Quadros intermediários da abertura e do fechamento capturados com o relógio de teste pausado, nos dois temas |
+
+Nos primeiros quadros, os retratos ficavam translúcidos no meio do trajeto, porque as duas cópias se misturavam; agora o retrato de destino fica sempre opaco. No fechamento, o card encolhia mais rápido que o último retrato subia e o cortava na borda; o recolhimento passou a usar a mesma mola dos retratos.
+
+## Cards e detalhes das unidades (8 de outubro de 2026)
+
+O card da unidade ganhou o ícone do tipo de imóvel no lugar das iniciais, a marca de ocupação ao lado do tipo e uma faixa com dois números alinhados: aluguéis por mês e ocupação. Os moradores ficam no rodapé, junto do botão que mostra a lista. Nos detalhes do inquilino e da unidade, os dois fatos principais ficam sempre na mesma linha, com um fio entre eles; quando um valor é largo, os dois diminuem juntos. O detalhe da unidade deixou de mostrar a marca de ocupação e o texto de vagas ou excesso, e o condomínio só aparece em "Sobre a unidade" quando foi informado.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **44 testes**, sem falhas |
+| Testes instrumentados | **49 testes**, todos passaram (1 novo: valores largos numa coluna de 320dp continuam lado a lado, em uma linha, sem invadir o outro lado) |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Cards fechados e abertos nos dois temas, detalhes de unidade e inquilino, valores largos e escala de texto 1,3 revisados nas capturas dos testes |
+
+Durante a revisão, um teste mostrou que texto ajustável não pode ficar dentro de uma linha com altura intrínseca: a tela de Locações fechava ao abrir. O divisor passou a ter altura fixa e o problema não se repetiu.
+
+## Correção dos anéis (8 de outubro de 2026)
+
+Os anéis do Início, de Receber (Mensal e Conferir extrato) mediam valores em reais e deixavam "a vencer" como trilho, enquanto os números ao lado contavam inquilinos; com aluguéis diferentes, as fatias não correspondiam às quantidades. Todos passaram a contar itens a partir de uma única lista que também gera contadores e legendas; o percentual central é a parcela de pagos. Docs já contava corretamente e passou a usar a mesma lista. Os anéis de ocupação foram retirados dos cards e dos detalhes das unidades.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **44 testes** (8 novos em `RingMathTest`: frações por contagem, fatias iguais desenhadas iguais, proporções, percentuais e contagem por estado) |
+| Testes instrumentados | **48 testes**, todos passaram |
+| Inspeção visual | Anéis, legendas e contadores conferidos entre si; fileira de moradores revisada ampliada nos dois temas |
+
+## Navegação, anéis e tamanho de texto (8 de outubro de 2026)
+
+A barra de navegação passou a ser uma cápsula flutuante; as réguas de progresso foram substituídas por anéis com contagens; a seção de documentos passou a se chamar Docs; e o texto do aplicativo deixou de acompanhar o tamanho de fonte do sistema. Também foi corrigido o texto preto no tema escuro do aplicativo real, causado pela troca do `Scaffold` por uma `Box` sem cor de conteúdo.
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **36 testes**, sem falhas |
+| Testes instrumentados (emulador API 37) | **48 testes**, todos passaram (2 novos: cor do texto do esqueleto real no tema escuro e trava do tamanho de fonte) |
+| Trava de fonte | Com `font_scale` do sistema em 1,5, a Activity manteve escala 1,0 e idioma pt-BR; o emulador voltou a 1,0 depois |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Barra, anéis e telas em tema claro e escuro revisados nas capturas dos testes |
+
+Os testes de interface montam as telas dentro de um `Scaffold` próprio, que define a cor do conteúdo; por isso o texto preto não aparecia neles. O novo teste usa o esqueleto real do aplicativo.
+
 ## Redesign da interface (7 de outubro de 2026)
 
 A camada de apresentação foi reconstruída com o design system "Caderneta" ([DESIGN.md](../DESIGN.md)). Banco, repositórios, backups, regras de conferência, lembretes e integrações não foram alterados; o ViewModel mensal passou apenas a expor, para leitura, os estados do ano já carregados.

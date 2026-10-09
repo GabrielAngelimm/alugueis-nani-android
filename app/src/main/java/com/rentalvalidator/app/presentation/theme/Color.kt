@@ -56,6 +56,9 @@ data class NaniColors(
     val neutral: StatusTone,
     val plaque: Color,
     val onPlaque: Color,
+    /** The cover of a detail page, like a savings passbook: lit corner to deep corner. Text on it uses [onPlaque]. */
+    val coverStart: Color,
+    val coverEnd: Color,
     /** Fill of the single strongest action. At night it stays saturated so it never reads as disabled. */
     val action: Color,
     val onAction: Color,
@@ -77,6 +80,8 @@ internal val LightNaniColors = NaniColors(
     neutral = StatusTone(InkMuted, PaperDeep, Ink),
     plaque = Color(0xFF233886),
     onPlaque = Color(0xFFF4F6FF),
+    coverStart = Color(0xFF2D47AC),
+    coverEnd = Color(0xFF16245E),
     action = Pen,
     onAction = Color.White,
     rule = Rule,
@@ -100,6 +105,8 @@ internal val DarkNaniColors = NaniColors(
     neutral = StatusTone(InkMutedNight, SheetNightHigh, InkNight),
     plaque = Color(0xFF3A50A8),
     onPlaque = Color(0xFFF4F6FF),
+    coverStart = Color(0xFF2C3F96),
+    coverEnd = Color(0xFF111A4A),
     action = Color(0xFF4460D6),
     onAction = Color.White,
     rule = RuleNight,

@@ -117,10 +117,12 @@ fun NaniFact(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    valueStyle: TextStyle = com.rentalvalidator.app.presentation.theme.NaniType.moneyRow
+    valueStyle: TextStyle = com.rentalvalidator.app.presentation.theme.NaniType.moneyRow,
+    labelLines: Int = Int.MAX_VALUE
 ) {
     Column(modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = labelLines, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         Text(value, style = valueStyle, maxLines = 1, softWrap = false)
     }
 }

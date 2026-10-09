@@ -81,7 +81,7 @@ fun MonthlyGridScreen(viewModel: MonthlyGridViewModel = hiltViewModel(), tenantI
                 }
             }
         }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationClearance.current)) {
             stickyHeader {
                 Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
                     MonthSwitcher("${getMonthName(state.month)} ${state.year}", viewModel::previousMonth, viewModel::nextMonth) { showPicker = true }
@@ -146,26 +146,35 @@ private fun MonthSwitcher(title: String, onPrevious: () -> Unit, onNext: () -> U
 private fun MonthTally(items: List<TenantPaymentItem>, period: YearMonth, modifier: Modifier = Modifier) {
     val today = LocalDate.now()
     val states = items.map { dueState(it.payment?.status, period, it.tenant.dueDay, today) }
-    val paidCount = states.count { it == DueState.PAID }
+    // The ring counts tenants, like the legend beside it; the amount line carries the money.
+    val counts = dueCounts(states)
+    val stats = dueStats(counts)
+    val percent = percentOf(counts.paid, counts.total)
     val received = items.zip(states).filter { it.second == DueState.PAID }.sumOf { it.first.tenant.amount }
-    val expected = items.sumOf { it.tenant.amount }
     LedgerSheet(modifier) {
-        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f)) {
-                    Text("Recebido", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FittingText(CurrencyUtils.format(received), NaniType.moneyLarge)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("$paidCount de ${items.size} pagos", style = MaterialTheme.typography.labelMedium, color = NaniTheme.colors.paid.ink)
-                    Text("de ${CurrencyUtils.format(expected)}", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+        Row(Modifier.padding(start = 14.dp, end = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusRing(ringOf(stats), "${counts.paid} de ${counts.total} aluguéis pagos", size = 64.dp, stroke = 7.dp) {
+                RingLabel(if (counts.total > 0) "$percent%" else "—", 64.dp)
             }
-            Spacer(Modifier.height(12.dp))
-            Regua(items.zip(states).map { (item, state) -> ReguaPart(item.tenant.amount.toFloat(), state.kind()) },
-                "$paidCount de ${items.size} aluguéis recebidos", height = 10.dp)
+            Spacer(Modifier.width(14.dp))
+            TallyText("Recebido", received, items.sumOf { it.tenant.amount }, stats, Modifier.weight(1f))
         }
+    }
+}
+
+/**
+ * The words beside a ring: the amount in, what was expected and a legend whose markers, counts
+ * and labels are the ring's own. Pieces flow whole, so a narrow screen wraps them without splitting a value.
+ */
+@Composable
+internal fun TallyText(label: String, amount: Double, expected: Double, stats: List<StatCount>, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FittingText(CurrencyUtils.format(amount), NaniType.moneyLarge)
+        Text("de ${CurrencyUtils.format(expected)}", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(2.dp))
+        RingLegend(stats)
     }
 }
 

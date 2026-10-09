@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -197,6 +198,124 @@ class VisualFlowTest {
         shot("dashboard-compact-overview")
     }
 
+    /** The two leading facts of a detail page share one line even when a value is wide. */
+    @Test fun heroFactsStaySideBySideWithWideValues() {
+        compose.setContent {
+            RentalValidatorTheme(darkTheme = true) {
+                Surface {
+                    Column(Modifier.width(320.dp).statusBarsPadding()) {
+                        com.rentalvalidator.app.presentation.design.NaniDetailHero(
+                            "Esio 46", "R. Macieira N10 - Guarulhos", "Aluguéis por mês", "R$ 36.555,00", "Inquilinos", "5 de 4",
+                            identity = com.rentalvalidator.app.presentation.design.DetailIdentity.UNIT,
+                            unitIcon = androidx.compose.material.icons.Icons.Rounded.Home)
+                        // A long name and a long unit wrap inside the cover without pushing the facts apart.
+                        com.rentalvalidator.app.presentation.design.NaniDetailHero(
+                            "Ana Beatriz de Albuquerque Figueiredo", "Residencial Jardim das Oliveiras, bloco B, apartamento 302",
+                            "Aluguel mensal", "R$ 12.480,00", "Vencimento", "Dia 28")
+                    }
+                }
+            }
+        }
+        val amount = compose.onNodeWithText("R$ 36.555,00").fetchSemanticsNode()
+        val count = compose.onNodeWithText("5 de 4").fetchSemanticsNode()
+        Assert.assertEquals("Values share one line", amount.boundsInRoot.top, count.boundsInRoot.top, 1.5f)
+        Assert.assertTrue("Values sit side by side", amount.boundsInRoot.right < count.boundsInRoot.left)
+        listOf("R$ 36.555,00", "5 de 4").forEach { value ->
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            compose.onNodeWithText(value).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            Assert.assertEquals(1, layouts.single().lineCount)
+            Assert.assertTrue("$value must fit its half", layouts.single().getLineRight(0) <= layouts.single().size.width + 1f)
+        }
+        val name = compose.onNodeWithText("Ana Beatriz de Albuquerque Figueiredo").fetchSemanticsNode()
+        val rent = compose.onNodeWithText("R$ 12.480,00").fetchSemanticsNode()
+        val due = compose.onNodeWithText("Dia 28").fetchSemanticsNode()
+        Assert.assertTrue("The facts sit below the cover", rent.boundsInRoot.top > name.boundsInRoot.bottom)
+        Assert.assertEquals("Long names leave the facts level", rent.boundsInRoot.top, due.boundsInRoot.top, 1.5f)
+        shot("hero-wide-values")
+    }
+
+    /** Saves the frame the paused test clock has reached, without waiting for animations to settle. */
+    private fun frame(name: String) {
+        Thread.sleep(250) // Lets the window draw the frame produced by the last clock advance.
+        val folderName = InstrumentationRegistry.getArguments().getString("reviewFolder") ?: "nani-rebuild-review"
+        val folder = File(context.getExternalFilesDir(null), folderName).apply { mkdirs() }
+        InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
+            File(folder, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+    }
+
+    /**
+     * A unit card shows only its name and address on top and at most four portraits below. Opening
+     * it turns the portraits into the residents' lines; closing it folds them back into the pile.
+     */
+    @Test fun unitCardUnfoldsResidentsFromThePile() {
+        val home = RentalUnit("fold-unit", "Vila das Acácias", UnitType.HOUSE, location = "Rua das Acácias, 12",
+            capacity = 8, tenantCount = 6)
+        val people = listOf("Clara Nunes", "Davi Rocha", "Elisa Prado", "Felipe Antunes", "Gabriela Lins", "Heitor Campos")
+            .mapIndexed { i, name -> Tenant("fold-$i", name, 1200.0 + i * 50, 5 + i, unit = home.name, unitId = home.id) }
+        compose.setContent {
+            RentalValidatorTheme(darkTheme = dark.value) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    Column(Modifier.statusBarsPadding()) {
+                        com.rentalvalidator.app.presentation.ui.tenants.TenantsOverview(people, listOf(home),
+                            com.rentalvalidator.app.presentation.ui.tenants.TenantViewMode.UNITS, "", false,
+                            onQuery = {}, onMode = {}, onUnit = {}, onTenant = {}, onFilters = {}, onAdd = {})
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Vila das Acácias").assertIsDisplayed()
+        compose.onNodeWithText("Rua das Acácias, 12").assertIsDisplayed()
+        listOf("Casa", "Ocupação parcial", "Ocupada").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+        compose.onNode(hasContentDescription("Clara Nunes, Davi Rocha, Elisa Prado, Felipe Antunes e mais 2")).assertExists()
+        compose.onNodeWithText("Gabriela Lins").assertDoesNotExist()
+        shot("unit-fold-closed")
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Mostrar inquilinos").performClick()
+        listOf(70L, 90L, 110L, 160L).fold(0L) { elapsed, step ->
+            compose.mainClock.advanceTimeBy(step)
+            (elapsed + step).also { frame("unit-fold-opening-$it") }
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        people.forEach { compose.onNodeWithText(it.name).assertExists() }
+        compose.onNode(hasContentDescription("e mais 2", substring = true)).assertDoesNotExist()
+        shot("unit-fold-open")
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Recolher inquilinos").performClick()
+        listOf(70L, 90L, 110L, 160L).fold(0L) { elapsed, step ->
+            compose.mainClock.advanceTimeBy(step)
+            (elapsed + step).also { frame("unit-fold-closing-$it") }
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNode(hasContentDescription("e mais 2", substring = true)).assertExists()
+        compose.onNodeWithText("Gabriela Lins").assertDoesNotExist()
+        compose.runOnIdle { dark.value = true }
+        shot("unit-fold-closed-dark")
+    }
+
+    /** The production shell, not this harness's Scaffold, must give page text the theme's ink. */
+    @Test fun appShellInksPageTextForTheNightTheme() {
+        var ink = androidx.compose.ui.graphics.Color.Unspecified
+        var expected = androidx.compose.ui.graphics.Color.Unspecified
+        compose.setContent {
+            RentalValidatorTheme(darkTheme = true) {
+                com.rentalvalidator.app.presentation.navigation.NaniScaffold(null, {}) {
+                    ink = LocalContentColor.current
+                    expected = MaterialTheme.colorScheme.onBackground
+                    Text("Histórico de recebimentos")
+                }
+            }
+        }
+        compose.waitForIdle()
+        Assert.assertEquals(expected, ink)
+        Assert.assertNotEquals(androidx.compose.ui.graphics.Color.Black, ink)
+    }
+
     @Test fun dashboardListsOpenRentsAndOpensTheTenantsPayments() {
         launch()
         compose.waitUntil(10_000) { tenants.tenants.value.size == 3 && tenants.recentPayments.value.isNotEmpty() }
@@ -366,7 +485,7 @@ class VisualFlowTest {
                             )
                             com.rentalvalidator.app.presentation.design.NaniDetailHero(
                                 "Jardim das Oliveiras", "Rua das Oliveiras, 84", "Inquilinos", "3",
-                                "Capacidade", "4 inquilinos", compact = true
+                                "Capacidade", "4 inquilinos", identity = com.rentalvalidator.app.presentation.design.DetailIdentity.UNIT
                             )
                         }
                     }
