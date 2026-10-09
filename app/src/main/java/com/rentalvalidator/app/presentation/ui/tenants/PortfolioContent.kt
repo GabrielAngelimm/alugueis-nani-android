@@ -1,6 +1,15 @@
 package com.rentalvalidator.app.presentation.ui.tenants
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -118,22 +127,26 @@ internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mod
     }
 }
 
-/** A tenant as a line of the ledger, used in lists and inside unit pages. */
+/**
+ * A tenant as a line of the ledger, used in lists and inside unit pages. [mark] and [detail]
+ * reach the monogram and the text, so a unit card can carry portraits into the line.
+ */
 @Composable
-internal fun TenantLine(tenant: Tenant, onClick: () -> Unit, showUnit: Boolean = true) {
+internal fun TenantLine(tenant: Tenant, onClick: () -> Unit, showUnit: Boolean = true,
+    mark: Modifier = Modifier, detail: Modifier = Modifier) {
     val stacked = LocalDensity.current.fontScale > 1.3f
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).heightIn(min = 72.dp)
         .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Monogram(tenant.name)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Monogram(tenant.name, mark)
+        Column(Modifier.weight(1f).then(detail), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(tenant.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(if (showUnit) tenant.unit.ifBlank { "Geral" } else "Vence dia ${tenant.dueDay}",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (stacked) Text(CurrencyUtils.format(tenant.amount), style = NaniType.moneyRow)
         }
-        if (!stacked) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (!stacked) Column(detail, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(CurrencyUtils.format(tenant.amount), style = NaniType.moneyRow, maxLines = 1, softWrap = false)
             if (showUnit) Text("dia ${tenant.dueDay}", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -153,10 +166,11 @@ internal fun CapacityKind.noun(count: Int) = when (this) {
 }
 
 /**
- * A unit as a card: what it is and where, then what it brings in and how full it is, then who
- * lives there. The last row opens the list of tenants in place.
+ * A unit as a card: its name and address, then what it brings in and how full it is, then who
+ * lives there. Opening the card unfolds the residents: each portrait in the pile travels to its
+ * own line of the list, and folds back into the pile when the list closes.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, residents: List<Tenant>,
     onUnit: (String) -> Unit, onTenant: (Tenant) -> Unit) {
@@ -164,76 +178,97 @@ private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, r
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, AppMotion.StateFloat, label = "unit expand")
     val colors = MaterialTheme.colorScheme
     val occupied = unit?.tenantCount ?: residents.size
+    val address = unit?.location?.takeIf { it.isNotBlank() }
+    val travel = BoundsTransform { _, _ -> AppMotion.Travel }
     Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page, vertical = 6.dp),
         shape = RoundedCornerShape(AppSize.sheetRadius), color = colors.surface) {
-        Column {
-            Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onUnit(name) }.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                UnitTile(unit?.type?.glyph() ?: UnitGroupGlyph)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    // What the unit is, with how full it is right beside it.
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(unit?.type?.displayName() ?: "Agrupamento de inquilinos", Modifier.align(Alignment.CenterVertically),
-                            style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                        if (unit != null) StatusMark(unit.occupancyStatus.displayName(), unit.occupancyStatus.badgeKind(),
-                            Modifier.align(Alignment.CenterVertically))
-                    }
-                    unit?.location?.takeIf { it.isNotBlank() }?.let { address ->
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.LocationOn, null, Modifier.size(14.dp), tint = colors.onSurfaceVariant)
-                            Text(address, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        SharedTransitionLayout {
+            Column {
+                Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onUnit(name) }.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    UnitTile(unit?.type?.glyph() ?: UnitGroupGlyph)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (address != null) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.LocationOn, null, Modifier.padding(top = 2.dp).size(16.dp), tint = colors.onSurfaceVariant)
+                            Text(address, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        } else if (unit == null) {
+                            Text("Sem unidade cadastrada", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                         }
                     }
+                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(22.dp), tint = colors.onSurfaceVariant)
                 }
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(22.dp), tint = colors.onSurfaceVariant)
-            }
-            // The same two figures that lead the unit's own page. The divider has a fixed height:
-            // the amount fits itself to its width, and such text cannot report intrinsic sizes.
-            Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLow).padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Aluguéis por mês", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                    FittingText(CurrencyUtils.format(residents.sumOf { it.amount }), NaniType.moneyRow)
+                // The same two figures that lead the unit's own page. The divider has a fixed height:
+                // the amount fits itself to its width, and such text cannot report intrinsic sizes.
+                Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp).fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLow).padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Aluguéis por mês", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        FittingText(CurrencyUtils.format(residents.sumOf { it.amount }), NaniType.moneyRow)
+                    }
+                    VerticalDivider(Modifier.height(36.dp).padding(horizontal = 14.dp), color = colors.outlineVariant)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Ocupação", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        FittingText(if (unit != null) "${unit.tenantCount} de ${unit.capacity}"
+                            else pluralStringResource(R.plurals.tenant_count, occupied, occupied), NaniType.moneyRow)
+                    }
                 }
-                VerticalDivider(Modifier.height(36.dp).padding(horizontal = 14.dp), color = colors.outlineVariant)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Ocupação", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                    FittingText(if (unit != null) "${unit.tenantCount} de ${unit.capacity}"
-                        else pluralStringResource(R.plurals.tenant_count, occupied, occupied), NaniType.moneyRow)
+                LedgerRule()
+                Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // The pile leaves as the list arrives: its portraits are the ones the lines will wear.
+                    AnimatedVisibility(!expanded && residents.isNotEmpty(),
+                        enter = fadeIn(tween(220, delayMillis = 120, easing = AppMotion.Settle)),
+                        exit = fadeOut(AppMotion.ExitFade)) {
+                        ResidentsPile(residents.map { it.name }, size = 34.dp, ring = colors.surface, maxFaces = 4,
+                            face = { index ->
+                                Modifier.sharedBounds(rememberSharedContentState(ResidentKey(residents[index].id)), this@AnimatedVisibility,
+                                    enter = EnterTransition.None, exit = fadeOut(tween(160, easing = AppMotion.Settle)),
+                                    boundsTransform = travel, zIndexInOverlay = index + 1f)
+                            })
+                    }
+                    Spacer(Modifier.weight(1f))
+                    AnimatedContent(if (occupied == 0) "Nenhum inquilino" else if (expanded) "Ocultar inquilinos" else "Ver inquilinos",
+                        transitionSpec = { fadeIn(tween(180, delayMillis = 60)) togetherWith fadeOut(tween(90)) using SizeTransform(clip = false) },
+                        contentAlignment = Alignment.CenterEnd, label = "unit toggle label") { label ->
+                        Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, textAlign = TextAlign.End)
+                    }
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(Icons.Rounded.ExpandMore, if (expanded) "Recolher inquilinos" else "Mostrar inquilinos", Modifier.rotate(rotation))
+                    }
                 }
-            }
-            LedgerRule()
-            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ResidentsPile(residents.map { it.name }, vacancies = unit?.let { it.capacity - it.tenantCount } ?: 0,
-                    occupied = occupied, size = 34.dp, ring = colors.surface, maxFaces = 4, maxSeats = 2)
-                Text(if (occupied == 0) "Nenhum inquilino" else if (expanded) "Ocultar inquilinos" else "Ver inquilinos",
-                    Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.End)
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(Icons.Rounded.ExpandMore, if (expanded) "Recolher inquilinos" else "Mostrar inquilinos", Modifier.rotate(rotation))
-                }
-            }
-            AnimatedVisibility(expanded,
-                enter = expandVertically(AppMotion.ExpandVertically, expandFrom = Alignment.Top) + fadeIn(AppMotion.EnterFade),
-                exit = shrinkVertically(AppMotion.CollapseVertically, shrinkTowards = Alignment.Top) + fadeOut(AppMotion.ExitFade)) {
-                Column(Modifier.background(colors.surfaceContainerLow)) {
-                    LedgerRule()
-                    if (tenants.isEmpty()) {
-                        Text("Nenhum inquilino nesta unidade.", Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium,
-                            color = colors.onSurfaceVariant)
-                    } else tenants.forEachIndexed { index, tenant ->
-                        if (index > 0) LedgerRule(Modifier.padding(start = 70.dp))
-                        TenantLine(tenant, { onTenant(tenant) }, showUnit = false)
+                AnimatedVisibility(expanded,
+                    enter = expandVertically(AppMotion.FoldOpen, expandFrom = Alignment.Top) + fadeIn(AppMotion.EnterFade),
+                    exit = shrinkVertically(AppMotion.FoldClose, shrinkTowards = Alignment.Top) + fadeOut(tween(200, delayMillis = 60))) {
+                    Column(Modifier.background(colors.surfaceContainerLow)) {
+                        LedgerRule()
+                        if (tenants.isEmpty()) {
+                            Text("Nenhum inquilino nesta unidade.", Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium,
+                                color = colors.onSurfaceVariant)
+                        } else tenants.forEachIndexed { index, tenant ->
+                            if (index > 0) LedgerRule(Modifier.padding(start = 70.dp))
+                            // Names follow their portrait down, one line after another.
+                            val delay = 110 + index * 45
+                            TenantLine(tenant, { onTenant(tenant) }, showUnit = false,
+                                mark = Modifier.sharedBounds(rememberSharedContentState(ResidentKey(tenant.id)), this@AnimatedVisibility,
+                                    enter = EnterTransition.None, exit = fadeOut(tween(160, easing = AppMotion.Settle)),
+                                    boundsTransform = travel, zIndexInOverlay = index + 1f),
+                                detail = Modifier.animateEnterExit(
+                                    enter = fadeIn(tween(240, delayMillis = delay, easing = AppMotion.Settle)) +
+                                        slideInHorizontally(tween(320, delayMillis = delay, easing = AppMotion.Settle)) { -it / 10 },
+                                    exit = fadeOut(tween(110))))
+                        }
                     }
                 }
             }
         }
     }
 }
+
+/** Pairs a resident's portrait in the pile with the same person's line in the list. */
+private data class ResidentKey(val tenantId: String)
 
 /** What a unit is, as a glyph: house, apartment, building, shop or room. Presentation only. */
 internal fun UnitType.glyph(): ImageVector = when (this) {
@@ -251,17 +286,4 @@ internal val UnitGroupGlyph: ImageVector = Icons.Rounded.Groups
 internal fun UnitType.displayName() = when (this) {
     UnitType.APARTMENT -> "Apartamento"; UnitType.HOUSE -> "Casa"; UnitType.COMMERCIAL_ROOM -> "Sala comercial"
     UnitType.BUILDING -> "Prédio"; UnitType.KITNET -> "Kitnet"; UnitType.OTHER -> "Outro"
-}
-
-internal fun OccupancyStatus.displayName() = when (this) {
-    OccupancyStatus.AVAILABLE -> "Disponível"; OccupancyStatus.OCCUPIED -> "Ocupada"
-    OccupancyStatus.PARTIALLY_OCCUPIED -> "Ocupação parcial"; OccupancyStatus.MAINTENANCE -> "Em manutenção"
-    OccupancyStatus.INACTIVE -> "Inativa"
-}
-
-internal fun OccupancyStatus.badgeKind() = when (this) {
-    OccupancyStatus.OCCUPIED -> StatusKind.SUCCESS
-    OccupancyStatus.PARTIALLY_OCCUPIED -> StatusKind.WARNING
-    OccupancyStatus.MAINTENANCE -> StatusKind.INFO
-    OccupancyStatus.AVAILABLE, OccupancyStatus.INACTIVE -> StatusKind.NEUTRAL
 }

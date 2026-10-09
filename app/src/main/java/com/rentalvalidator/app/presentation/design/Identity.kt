@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,11 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,52 +91,37 @@ fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Mo
 }
 
 /**
- * The people of a unit at a glance: their monograms overlap like portraits on a fridge door,
- * followed by a dashed seat for each free place. Long lists end in a "+N" token instead of
- * running off the card. Purely visual; the sentence beside it carries the same facts for TalkBack.
+ * The people of a unit at a glance: their monograms overlap like portraits on a fridge door.
+ * Only people who live there are shown, at most [maxFaces]; the rest are counted in a quiet
+ * "+N" pill. [face] lets a caller attach each portrait to a transition, keyed by its position.
  */
 @Composable
 fun ResidentsPile(
     names: List<String>,
-    vacancies: Int,
     modifier: Modifier = Modifier,
-    occupied: Int = names.size,
     size: Dp = 34.dp,
     ring: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerLow,
     maxFaces: Int = 4,
-    maxSeats: Int = 3
+    face: @Composable (index: Int) -> Modifier = { Modifier }
 ) {
     val colors = MaterialTheme.colorScheme
-    val people = maxOf(occupied, names.size)
-    val faces = if (people > maxFaces) names.take(maxFaces - 1) else names.take(maxFaces)
-    val hiddenFaces = people - faces.size
-    val seats = vacancies.coerceAtLeast(0)
-    val shownSeats = if (seats > maxSeats) maxSeats - 1 else seats
-    val hiddenSeats = seats - shownSeats
-    val fontSize = with(LocalDensity.current) { (size * .3f).toSp() }
-    val token = @Composable { label: String ->
-        Box(Modifier.size(size).background(ring, CircleShape).padding(2.dp).background(colors.surfaceContainerHigh, CircleShape),
-            contentAlignment = Alignment.Center) {
-            Text(label, style = TextStyle(fontFamily = NaniSans, fontWeight = FontWeight.ExtraBold, fontSize = fontSize),
-                color = colors.onSurfaceVariant)
+    val faces = names.take(maxFaces)
+    val hidden = names.size - faces.size
+    val overlap = size * .18f
+    val spoken = faces.joinToString(", ") + if (hidden > 0) " e mais $hidden" else ""
+    Row(modifier.clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(-overlap)) {
+        faces.forEachIndexed { index, name ->
+            // The ring sits on the portrait's own edge, so a portrait keeps one size whether it is
+            // stacked here or standing alone in a list, and can travel between the two.
+            Monogram(name, face(index).border(2.dp, ring, CircleShape), size = size)
         }
-    }
-    Row(modifier.clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(-(size * .18f))) {
-        faces.forEach { name ->
-            // A ring in the panel's color separates overlapping portraits.
-            Box(Modifier.size(size).background(ring, CircleShape).padding(2.dp)) { Monogram(name, size = size - 4.dp) }
+        if (hidden > 0) {
+            Text("+$hidden", Modifier.padding(start = overlap + 8.dp).clip(CircleShape)
+                .background(colors.surfaceContainerHigh).padding(horizontal = 9.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = colors.onSurfaceVariant, maxLines = 1)
         }
-        if (hiddenFaces > 0) token("+$hiddenFaces")
-        if (seats > 0) Spacer(Modifier.size(width = size * .18f + 6.dp, height = 1.dp))
-        repeat(shownSeats) {
-            Box(Modifier.size(size).background(ring, CircleShape).padding(2.dp).drawBehind {
-                val stroke = 1.5.dp.toPx()
-                drawCircle(colors.outline, radius = this.size.minDimension / 2f - stroke / 2f,
-                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.5.dp.toPx()))))
-            })
-        }
-        if (hiddenSeats > 0) token("+$hiddenSeats")
     }
 }
 

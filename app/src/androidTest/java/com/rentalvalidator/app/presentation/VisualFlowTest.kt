@@ -223,6 +223,70 @@ class VisualFlowTest {
         shot("hero-wide-values")
     }
 
+    /** Saves the frame the paused test clock has reached, without waiting for animations to settle. */
+    private fun frame(name: String) {
+        Thread.sleep(250) // Lets the window draw the frame produced by the last clock advance.
+        val folderName = InstrumentationRegistry.getArguments().getString("reviewFolder") ?: "nani-rebuild-review"
+        val folder = File(context.getExternalFilesDir(null), folderName).apply { mkdirs() }
+        InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
+            File(folder, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+    }
+
+    /**
+     * A unit card shows only its name and address on top and at most four portraits below. Opening
+     * it turns the portraits into the residents' lines; closing it folds them back into the pile.
+     */
+    @Test fun unitCardUnfoldsResidentsFromThePile() {
+        val home = RentalUnit("fold-unit", "Vila das Acácias", UnitType.HOUSE, location = "Rua das Acácias, 12",
+            capacity = 8, tenantCount = 6)
+        val people = listOf("Clara Nunes", "Davi Rocha", "Elisa Prado", "Felipe Antunes", "Gabriela Lins", "Heitor Campos")
+            .mapIndexed { i, name -> Tenant("fold-$i", name, 1200.0 + i * 50, 5 + i, unit = home.name, unitId = home.id) }
+        compose.setContent {
+            RentalValidatorTheme(darkTheme = dark.value) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    Column(Modifier.statusBarsPadding()) {
+                        com.rentalvalidator.app.presentation.ui.tenants.TenantsOverview(people, listOf(home),
+                            com.rentalvalidator.app.presentation.ui.tenants.TenantViewMode.UNITS, "", false,
+                            onQuery = {}, onMode = {}, onUnit = {}, onTenant = {}, onFilters = {}, onAdd = {})
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Vila das Acácias").assertIsDisplayed()
+        compose.onNodeWithText("Rua das Acácias, 12").assertIsDisplayed()
+        listOf("Casa", "Ocupação parcial", "Ocupada").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+        compose.onNode(hasContentDescription("Clara Nunes, Davi Rocha, Elisa Prado, Felipe Antunes e mais 2")).assertExists()
+        compose.onNodeWithText("Gabriela Lins").assertDoesNotExist()
+        shot("unit-fold-closed")
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Mostrar inquilinos").performClick()
+        listOf(70L, 90L, 110L, 160L).fold(0L) { elapsed, step ->
+            compose.mainClock.advanceTimeBy(step)
+            (elapsed + step).also { frame("unit-fold-opening-$it") }
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        people.forEach { compose.onNodeWithText(it.name).assertExists() }
+        compose.onNode(hasContentDescription("e mais 2", substring = true)).assertDoesNotExist()
+        shot("unit-fold-open")
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Recolher inquilinos").performClick()
+        listOf(70L, 90L, 110L, 160L).fold(0L) { elapsed, step ->
+            compose.mainClock.advanceTimeBy(step)
+            (elapsed + step).also { frame("unit-fold-closing-$it") }
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNode(hasContentDescription("e mais 2", substring = true)).assertExists()
+        compose.onNodeWithText("Gabriela Lins").assertDoesNotExist()
+        compose.runOnIdle { dark.value = true }
+        shot("unit-fold-closed-dark")
+    }
+
     /** The production shell, not this harness's Scaffold, must give page text the theme's ink. */
     @Test fun appShellInksPageTextForTheNightTheme() {
         var ink = androidx.compose.ui.graphics.Color.Unspecified

@@ -50,7 +50,7 @@ A barra é uma cápsula flutuante sobre o conteúdo, que corre por trás dela e 
 | `LedgerSheet`, `LedgerSlice`, `LedgerRule`, `NaniActionRow`, `NaniFact` | `design/Ledger.kt` | Folhas pautadas e linhas de lista |
 | `StatusMark` | `design/Status.kt` | Carimbo, marca-texto, tracejado e contorno |
 | `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend`, `dueStats`, `ringOf` | `design/Progress.kt` | Anéis por contagem do Início, de Receber e de Docs, com contadores e legendas da mesma lista; a geometria (`ringMarks`) é testada em `RingMathTest` |
-| `Monogram`, `UnitTile`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades: o ícone do tipo de imóvel (`UnitTile`) marca cada unidade no card e no detalhe; fileira de moradores com vagas livres tracejadas no rodapé do card |
+| `Monogram`, `UnitTile`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades: o ícone do tipo de imóvel (`UnitTile`) marca cada unidade no card e no detalhe; no rodapé do card, até quatro retratos sobrepostos dos moradores e um "+N" discreto para os demais |
 | `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe; os dois fatos principais ficam sempre na mesma linha, separados por um fio |
 | `NaniSheet`, `NaniChoice` | `design/NaniSheet.kt` | Painéis inferiores e escolhas exclusivas |
 | `NaniConfirmDialog` | `design/Dialogs.kt` | Confirmações com verbo de ação |
@@ -73,7 +73,7 @@ Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e d
 
 ## Movimento
 
-`AppMotion` concentra durações e curvas. As seções compartilham um eixo horizontal: ir para uma seção à direita na barra desliza a página da direita, e voltar desliza da esquerda. Na barra, a lente da seção ativa estica a caminho do destino (a borda da frente com mola mais rígida que a de trás) e o ícone ganha preenchimento com um pequeno salto. Páginas abertas a partir de outra deslizam no sentido de leitura. Expansões usam 240ms com desaceleração firme. Animações respeitam a escala de animação do sistema.
+`AppMotion` concentra durações e curvas. As seções compartilham um eixo horizontal: ir para uma seção à direita na barra desliza a página da direita, e voltar desliza da esquerda. Na barra, a lente da seção ativa estica a caminho do destino (a borda da frente com mola mais rígida que a de trás) e o ícone ganha preenchimento com um pequeno salto. Páginas abertas a partir de outra deslizam no sentido de leitura. Expansões usam 240ms com desaceleração firme. No card da unidade, abrir a lista leva cada retrato da fileira até a linha do respectivo inquilino (`SharedTransitionLayout`, mola `AppMotion.Travel`), e os nomes entram em seguida, uma linha após a outra; fechar faz o caminho inverso, e o card recolhe na mesma mola para nunca cortar um retrato no trajeto. Animações respeitam a escala de animação do sistema.
 
 ## Manutenção
 

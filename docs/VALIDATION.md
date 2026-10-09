@@ -1,5 +1,18 @@
 # Validação da revisão
 
+## Moradores no card da unidade (8 de outubro de 2026)
+
+O cabeçalho do card passou a mostrar só o nome da unidade e o endereço; o tipo do imóvel e a marca de ocupação saíram. No rodapé, a fileira mostra até quatro moradores e conta os demais num "+N" discreto; as vagas livres tracejadas foram retiradas. Ao abrir o card, cada retrato da fileira se desloca até a linha do respectivo inquilino e os nomes entram em seguida; ao fechar, as linhas voltam a formar a fileira. A fileira também passou a ser lida pelo TalkBack ("Clara Nunes, Davi Rocha, ... e mais 2").
+
+| Verificação | Resultado |
+| --- | --- |
+| `testDebugUnitTest` | **44 testes**, sem falhas |
+| Testes instrumentados | **50 testes**, todos passaram (1 novo: card com seis moradores mostra quatro retratos e "+2", sem tipo nem marca; abre com todos os nomes e fecha de volta à fileira) |
+| `lintDebug` | Sem erros; os mesmos **27 avisos** anteriores |
+| Inspeção visual | Quadros intermediários da abertura e do fechamento capturados com o relógio de teste pausado, nos dois temas |
+
+Nos primeiros quadros, os retratos ficavam translúcidos no meio do trajeto, porque as duas cópias se misturavam; agora o retrato de destino fica sempre opaco. No fechamento, o card encolhia mais rápido que o último retrato subia e o cortava na borda; o recolhimento passou a usar a mesma mola dos retratos.
+
 ## Cards e detalhes das unidades (8 de outubro de 2026)
 
 O card da unidade ganhou o ícone do tipo de imóvel no lugar das iniciais, a marca de ocupação ao lado do tipo e uma faixa com dois números alinhados: aluguéis por mês e ocupação. Os moradores ficam no rodapé, junto do botão que mostra a lista. Nos detalhes do inquilino e da unidade, os dois fatos principais ficam sempre na mesma linha, com um fio entre eles; quando um valor é largo, os dois diminuem juntos. O detalhe da unidade deixou de mostrar a marca de ocupação e o texto de vagas ou excesso, e o condomínio só aparece em "Sobre a unidade" quando foi informado.
