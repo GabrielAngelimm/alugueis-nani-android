@@ -22,6 +22,8 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldColors
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
@@ -42,10 +45,39 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.rentalvalidator.app.presentation.theme.AppSize
 import kotlinx.coroutines.delay
 
 /** A field reads like an entry on a ruled line: a filled box resting on its rule. */
 private val FieldShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 2.dp, bottomEnd = 2.dp)
+
+/** A prominent field is as tall as the buttons beside and below it. */
+private val ProminentFieldHeight = 56.dp
+
+/**
+ * True where fields stand on their own as small cards, as in a guided registration: a rounded
+ * sheet on the page with a fine rule around it, inked while it has focus.
+ */
+val LocalProminentFields = staticCompositionLocalOf { false }
+
+@Composable
+private fun prominentFieldColors(): TextFieldColors {
+    val colors = MaterialTheme.colorScheme
+    return OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = colors.surface,
+        unfocusedContainerColor = colors.surface,
+        disabledContainerColor = colors.surfaceContainerHigh,
+        errorContainerColor = colors.surface,
+        focusedBorderColor = colors.primary,
+        unfocusedBorderColor = colors.outlineVariant,
+        errorBorderColor = colors.error,
+        cursorColor = colors.primary,
+        focusedTrailingIconColor = colors.onSurfaceVariant,
+        unfocusedTrailingIconColor = colors.onSurfaceVariant,
+        focusedPlaceholderColor = colors.onSurfaceVariant.copy(alpha = .7f),
+        unfocusedPlaceholderColor = colors.onSurfaceVariant.copy(alpha = .7f)
+    )
+}
 
 @Composable
 private fun naniFieldColors(): TextFieldColors {
@@ -79,7 +111,9 @@ private fun FieldLabel(text: String, focused: Boolean, isError: Boolean) {
 
 /**
  * The visible label doubles as the accessibility name, so assistive technology and
- * tests address a field by what the person reads above it.
+ * tests address a field by what the person reads above it. A field that a question already
+ * names can hide the label ([showLabel]); it then waits inside the field as the placeholder
+ * when there is no [helperText], and still names the field for assistive technology.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -99,7 +133,8 @@ fun NaniTextField(
     trailingIcon: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     focusRequester: FocusRequester? = null,
-    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    showLabel: Boolean = true
 ) {
     val bringIntoView = remember { BringIntoViewRequester() }
     var focused by remember { mutableStateOf(false) }
@@ -107,19 +142,42 @@ fun NaniTextField(
         if (focused) { delay(200); bringIntoView.bringIntoView() }
     }
     Column(modifier.fillMaxWidth().bringIntoViewRequester(bringIntoView)) {
-        FieldLabel(if (required) "$label *" else label, focused, isError)
-        Spacer(Modifier.height(6.dp))
-        TextField(
+        if (showLabel) {
+            FieldLabel(if (required) "$label *" else label, focused, isError)
+            Spacer(Modifier.height(6.dp))
+        }
+        val field = Modifier.fillMaxWidth()
+            .semantics { contentDescription = label }
+            .onFocusChanged { focused = it.isFocused }
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+        val hint = helperText ?: label.takeUnless { showLabel }
+        val supporting: (@Composable () -> Unit)? =
+            if (isError && errorMessage != null) ({ Text(errorMessage, style = MaterialTheme.typography.bodySmall) }) else null
+        if (LocalProminentFields.current) OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             readOnly = readOnly,
-            modifier = Modifier.fillMaxWidth()
-                .semantics { contentDescription = label }
-                .onFocusChanged { focused = it.isFocused }
-                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+            modifier = field.heightIn(min = ProminentFieldHeight),
+            shape = RoundedCornerShape(AppSize.controlRadius),
+            placeholder = hint?.let { { Text(it, style = MaterialTheme.typography.bodyLarge) } },
+            supportingText = supporting,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            singleLine = singleLine,
+            isError = isError,
+            trailingIcon = trailingIcon,
+            visualTransformation = visualTransformation,
+            maxLines = maxLines,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            colors = prominentFieldColors()
+        ) else TextField(
+            value = value,
+            onValueChange = onValueChange,
+            readOnly = readOnly,
+            modifier = field,
             shape = FieldShape,
-            placeholder = helperText?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
-            supportingText = if (isError && errorMessage != null) ({ Text(errorMessage, style = MaterialTheme.typography.bodySmall) }) else null,
+            placeholder = hint?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
+            supportingText = supporting,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
             singleLine = singleLine,

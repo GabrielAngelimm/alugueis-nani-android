@@ -191,18 +191,16 @@ internal fun UnitRegistration(
     ) { index ->
         val error = { field: UnitField -> flow.shown[field] }
         when (UnitStep.entries[index]) {
-            UnitStep.TYPE -> StepPage("Que tipo de imóvel é?",
-                "O tipo dá o ícone da unidade, que aparece nas listas e na página dela.") {
+            UnitStep.TYPE -> StepPage("Que tipo de imóvel é?") {
                 CoverChoices(TypeOrder, draft.type, { it.displayName() }, { it.glyph() }) { type ->
                     flow.edit(null) { copy(type = type) }
                 }
             }
-            UnitStep.IDENTITY -> StepPage("Como se chama $thisOne e onde fica?",
-                "O nome aparece nas listas e nos filtros; o endereço, na página da unidade.") {
+            UnitStep.IDENTITY -> StepPage("Como se chama $thisOne e onde fica?") {
                 val name = requesters.getValue(UnitField.NAME)
                 LaunchedEffect(Unit) { if (flow.draft.name.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { name.requestFocus() } } }
                 NaniTextField(draft.name, { flow.edit(UnitField.NAME) { copy(name = it) } }, "Nome da unidade", required = true,
-                    helperText = "Exemplo: Casa Azul, Apto 302",
+                    helperText = "Casa Azul, Apto 302",
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { runCatching { requesters.getValue(UnitField.LOCATION).requestFocus() } }),
                     isError = error(UnitField.NAME) != null, errorMessage = error(UnitField.NAME), focusRequester = name)
@@ -213,8 +211,7 @@ internal fun UnitRegistration(
                     isError = error(UnitField.LOCATION) != null, errorMessage = error(UnitField.LOCATION),
                     focusRequester = requesters.getValue(UnitField.LOCATION))
             }
-            UnitStep.CAPACITY -> StepPage("Quanto cabe $inThisOne?",
-                "A capacidade define a ocupação mostrada na lista, como 2 de 4.") {
+            UnitStep.CAPACITY -> StepPage("Quanto cabe $inThisOne?") {
                 Column {
                     ControlLabel("Contar por")
                     NaniTabs(CapacityKind.entries.map { capacityKindLabels.getValue(it) }, draft.capacityKind.ordinal,
@@ -224,8 +221,7 @@ internal fun UnitRegistration(
                     unit = draft.capacityKind.noun(draft.capacityCount), error = error(UnitField.CAPACITY),
                     focusRequester = requesters.getValue(UnitField.CAPACITY), onDone = { focusManager.clearFocus() })
             }
-            UnitStep.DETAILS -> StepPage("Mais algum detalhe?",
-                "Tudo aqui é opcional. A situação diz se a unidade está recebendo inquilinos.") {
+            UnitStep.DETAILS -> StepPage("Mais algum detalhe?") {
                 Column {
                     ControlLabel("Situação")
                     Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -236,7 +232,7 @@ internal fun UnitRegistration(
                     }
                 }
                 NaniTextField(draft.fee, { typed -> moneyInput(typed)?.let { flow.edit(UnitField.FEE) { copy(fee = it) } } },
-                    "Condomínio mensal (R\$)", helperText = "Exemplo: 250,00",
+                    "Condomínio mensal (R\$)", helperText = "0,00",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { runCatching { notes.requestFocus() } }),
                     isError = error(UnitField.FEE) != null, errorMessage = error(UnitField.FEE),
@@ -263,7 +259,7 @@ private fun UnitPreview(flow: UnitFlowState) {
         ?.let { "$it ${draft.capacityKind.noun(it)}" }
     val line = listOfNotNull(draft.location.trim().ifBlank { null }, capacity).joinToString(" · ").ifBlank { null }
     FlowPreview(seed = settled, unit = true, name = draft.name, placeholder = draft.type.displayName(), line = line,
-        linePlaceholder = "Endereço e capacidade", mark = { cover -> CoverMark(draft.type.glyph(), cover) })
+        linePlaceholder = "Endereço e capacidade", mark = { CoverMark(draft.type.glyph(), cover = 0f) })
 }
 
 @Composable
@@ -273,7 +269,7 @@ private fun AnimatedVisibilityScope.UnitReview(flow: UnitFlowState) {
     val fee = draft.fee.takeIf { it.isNotBlank() && validMoney(it, allowZero = true) }
         ?.let { CurrencyUtils.format(it.replace(',', '.').toDouble()) }
     val capacity = draft.capacityCount.takeIf { it > 0 }?.let { "$it ${draft.capacityKind.noun(it)}" }
-    ReviewPage("Confira a unidade", "Toque em uma resposta para corrigir. Nada é salvo antes de você confirmar.",
+    ReviewPage("Confira a unidade",
         preview = {
             NaniDetailHero(
                 title = draft.name.trim().ifBlank { "Sem nome" },

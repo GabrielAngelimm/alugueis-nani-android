@@ -52,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -62,7 +63,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -89,6 +89,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rentalvalidator.app.presentation.components.AppMotion
+import com.rentalvalidator.app.presentation.components.LocalProminentFields
 import com.rentalvalidator.app.presentation.components.PrimaryButton
 import com.rentalvalidator.app.presentation.components.SecondaryButton
 import com.rentalvalidator.app.presentation.design.LedgerRule
@@ -165,7 +166,7 @@ internal fun GuidedFlow(
                 val forward = targetState > initialState
                 (slideInHorizontally(AppMotion.PageSlide) { if (forward) it / 4 else -it / 4 } + fadeIn(AppMotion.EnterFade)) togetherWith
                     (slideOutHorizontally(AppMotion.PageSlide) { if (forward) -it / 6 else it / 6 } + fadeOut(AppMotion.ExitFade))
-            }) { step -> content(step) }
+            }) { step -> CompositionLocalProvider(LocalProminentFields provides true) { content(step) } }
             footer()
         }
     }
@@ -181,9 +182,10 @@ private val PreviewName = TextStyle(fontFamily = NaniSerif, fontWeight = FontWei
 /**
  * The record taking shape above the questions, the way a payment app draws the card being added:
  * a blank card outlined in pencil, with the [placeholder] and [linePlaceholder] in grey, until the
- * record has a [name]; then the cover itself, engraved from [seed] (ruled steel for a [unit]),
- * filling in answer by answer in [line], on a second line when it needs one. [mark] draws the disc
- * on the left, given how far the cover has come in.
+ * record has a [name]; then a calm card on the page, faintly engraved from [seed] (ruled courses
+ * for a [unit]), filling in answer by answer in [line], on a second line when it needs one. [mark]
+ * draws the disc on the left. The full cover waits for the review, so the questions stay the
+ * loudest thing on screen.
  */
 @Composable
 internal fun FlowPreview(
@@ -193,41 +195,38 @@ internal fun FlowPreview(
     placeholder: String,
     line: String?,
     linePlaceholder: String,
-    mark: @Composable (cover: Float) -> Unit
+    mark: @Composable () -> Unit
 ) {
-    val nani = NaniTheme.colors
     val colors = MaterialTheme.colorScheme
-    val cover by animateFloatAsState(if (name.isNotBlank()) 1f else 0f, tween(AppMotion.PageDuration, easing = AppMotion.Settle),
-        label = "preview cover")
+    val named by animateFloatAsState(if (name.isNotBlank()) 1f else 0f, tween(AppMotion.PageDuration, easing = AppMotion.Settle),
+        label = "preview named")
     val shape = RoundedCornerShape(AppSize.sheetRadius)
-    val deep = if (unit) nani.unitCoverEnd else nani.coverEnd
-    val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(10.dp * cover, shape,
-        ambientColor = deep.copy(alpha = .14f), spotColor = deep.copy(alpha = .3f))
     val pencil = colors.outline
+    val rule = colors.outlineVariant
     Row(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(bottom = 12.dp)
-        .then(lift).clip(shape).background(colors.surface)
-        .engravedCover(seed, unit, reveal = { cover })
+        .clip(shape).background(colors.surface)
+        .engravedCover(seed, unit, reveal = { named }, quiet = true)
         .drawWithContent {
             drawContent()
-            val outline = 1f - cover
-            if (outline > 0f) {
-                val stroke = 1.2.dp.toPx()
-                drawRoundRect(pencil, Offset(stroke / 2, stroke / 2), Size(size.width - stroke, size.height - stroke),
-                    CornerRadius(AppSize.sheetRadius.toPx()), alpha = .55f * outline,
-                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))))
-            }
+            // Pencilled while blank, a fine rule once the record has a name.
+            val stroke = 1.dp.toPx()
+            val corner = CornerRadius(AppSize.sheetRadius.toPx())
+            val inset = Offset(stroke / 2, stroke / 2)
+            val box = Size(size.width - stroke, size.height - stroke)
+            if (named < 1f) drawRoundRect(pencil, inset, box, corner, alpha = .55f * (1f - named),
+                style = Stroke(stroke * 1.2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))))
+            if (named > 0f) drawRoundRect(rule, inset, box, corner, alpha = named, style = Stroke(stroke))
         }
         .semantics(mergeDescendants = true) { }
         .heightIn(min = 76.dp)
         .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        mark(cover)
+        mark()
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name.trim().ifBlank { placeholder }, style = PreviewName,
-                color = lerp(colors.onSurfaceVariant, nani.onPlaque, cover), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                color = lerp(colors.onSurfaceVariant, colors.onSurface, named), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(line ?: linePlaceholder, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                color = if (line == null) lerp(colors.outline, nani.onPlaque.copy(alpha = .62f), cover)
-                else lerp(colors.onSurfaceVariant, nani.onPlaque.copy(alpha = .86f), cover))
+                color = if (line == null) colors.outline else colors.onSurfaceVariant)
         }
     }
 }
@@ -362,20 +361,18 @@ internal fun keyboardOpen(): Boolean = WindowInsets.ime.getBottom(LocalDensity.c
 
 /**
  * One question. The step's name sits above, in the step rule, so the page opens on the question
- * itself, written in the ledger's hand, with a line on why it is asked; the fields follow a beat
- * after the page lands. While the keyboard is up the line on why steps aside, so the question and
- * the field being typed in stay on screen together.
+ * itself, written in the ledger's hand, and nothing else; the fields follow a beat after the page
+ * lands.
  */
 @Composable
 internal fun AnimatedVisibilityScope.StepPage(
     question: String,
-    helper: String?,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scroll = rememberScrollState()
     Column(Modifier.fillMaxSize().fadeUnderTop(scroll).verticalScroll(scroll)
         .padding(horizontal = AppSpace.page).padding(top = 16.dp, bottom = 32.dp)) {
-        StepHeading(null, question, helper, compact = keyboardOpen())
+        StepHeading(null, question, null, compact = keyboardOpen())
         Column(Modifier.fillMaxWidth().landing(this@StepPage), verticalArrangement = Arrangement.spacedBy(22.dp), content = content)
     }
 }
@@ -384,13 +381,12 @@ internal fun AnimatedVisibilityScope.StepPage(
 @Composable
 internal fun AnimatedVisibilityScope.ReviewPage(
     question: String,
-    helper: String,
     preview: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scroll = rememberScrollState()
     Column(Modifier.fillMaxSize().fadeUnderTop(scroll).verticalScroll(scroll).padding(top = 16.dp, bottom = 32.dp)) {
-        Column(Modifier.padding(horizontal = AppSpace.page)) { StepHeading(null, question, helper) }
+        Column(Modifier.padding(horizontal = AppSpace.page)) { StepHeading(null, question, null) }
         // The preview brings its own gutter, as it does at the top of a detail page.
         Box(Modifier.landing(this@ReviewPage)) { preview() }
         Column(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).landing(this@ReviewPage, delay = 150),
