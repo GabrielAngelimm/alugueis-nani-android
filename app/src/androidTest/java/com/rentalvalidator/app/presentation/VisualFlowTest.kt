@@ -298,6 +298,67 @@ class VisualFlowTest {
         shot("unit-fold-closed-dark")
     }
 
+    /**
+     * On a narrow phone a full unit's pile, the toggle label and the chevron share one row. The label
+     * and the chevron hold their places while the pile leaves and returns, and the pile never covers them.
+     */
+    @Test fun unitToggleHoldsStillOnNarrowScreens() {
+        val home = RentalUnit("narrow-unit", "Vila das Acácias", UnitType.HOUSE, capacity = 8, tenantCount = 6)
+        val people = listOf("Clara Nunes", "Davi Rocha", "Elisa Prado", "Felipe Antunes", "Gabriela Lins", "Heitor Campos")
+            .mapIndexed { i, name -> Tenant("narrow-$i", name, 1200.0, 5 + i, unit = home.name, unitId = home.id) }
+        compose.setContent {
+            RentalValidatorTheme {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    // A Surface passes its minimum size on to its child, so the narrow column sits in a Box of its own.
+                    Box {
+                        Box(Modifier.statusBarsPadding().width(360.dp)) {
+                            com.rentalvalidator.app.presentation.ui.tenants.TenantsOverview(people, listOf(home),
+                                com.rentalvalidator.app.presentation.ui.tenants.TenantViewMode.UNITS, "", false,
+                                onQuery = {}, onMode = {}, onUnit = {}, onTenant = {}, onFilters = {}, onAdd = {})
+                        }
+                    }
+                }
+            }
+        }
+        fun chevron(description: String) = compose.onNodeWithContentDescription(description).fetchSemanticsNode().boundsInRoot
+        fun label(text: String) = compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val resting = label("Ver inquilinos")
+        val chevronAtRest = chevron("Mostrar inquilinos")
+        val pile = compose.onNode(hasContentDescription("e mais", substring = true), useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        Assert.assertEquals("The chevron keeps its full size", chevronAtRest.height, chevronAtRest.width, 1.5f)
+        Assert.assertTrue("The pile stays clear of the label", pile.right <= resting.left)
+
+        fun assertHeldStill(text: String, description: String) {
+            val shown = label(text)
+            Assert.assertEquals("$text keeps the label's right edge", resting.right, shown.right, 1.5f)
+            Assert.assertEquals("$text stays on one line", resting.height, shown.height, 1.5f)
+            val now = chevron(description)
+            Assert.assertEquals("The chevron does not move", chevronAtRest.left, now.left, 1.5f)
+            Assert.assertEquals("The chevron is not squeezed", chevronAtRest.width, now.width, 1.5f)
+        }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Mostrar inquilinos").performClick()
+        repeat(16) {
+            compose.mainClock.advanceTimeBy(40)
+            assertHeldStill("Ocultar inquilinos", "Recolher inquilinos")
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        people.forEach { compose.onNodeWithText(it.name).assertExists() }
+        assertHeldStill("Ocultar inquilinos", "Recolher inquilinos")
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("Recolher inquilinos").performClick()
+        repeat(16) {
+            compose.mainClock.advanceTimeBy(40)
+            assertHeldStill("Ver inquilinos", "Mostrar inquilinos")
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertHeldStill("Ver inquilinos", "Mostrar inquilinos")
+    }
+
     /** The production shell, not this harness's Scaffold, must give page text the theme's ink. */
     @Test fun appShellInksPageTextForTheNightTheme() {
         var ink = androidx.compose.ui.graphics.Color.Unspecified

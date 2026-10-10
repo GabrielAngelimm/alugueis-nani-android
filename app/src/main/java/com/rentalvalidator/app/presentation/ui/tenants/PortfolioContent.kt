@@ -45,6 +45,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalDensity
@@ -217,9 +218,12 @@ private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, r
                 }
                 LedgerRule()
                 Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // The pile leaves as the list arrives: its portraits are the ones the lines will wear.
-                    AnimatedVisibility(!expanded && residents.isNotEmpty(),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
+                    // The pile leaves as the list arrives: its portraits are the ones the lines will wear. It is
+                    // measured after the label and the chevron and only gets the room they leave, so it can
+                    // neither squeeze them nor push them while it comes and goes; once it is gone, the row
+                    // still packs them against the end.
+                    AnimatedVisibility(!expanded && residents.isNotEmpty(), Modifier.weight(1f),
                         enter = fadeIn(tween(220, delayMillis = 120, easing = AppMotion.Settle)),
                         exit = fadeOut(AppMotion.ExitFade)) {
                         ResidentsPile(residents.map { it.name }, size = 34.dp, ring = colors.surface, maxFaces = 4,
@@ -229,11 +233,17 @@ private fun UnitRecord(name: String, unit: RentalUnit?, tenants: List<Tenant>, r
                                     boundsTransform = travel, zIndexInOverlay = index + 1f)
                             })
                     }
-                    Spacer(Modifier.weight(1f))
-                    AnimatedContent(if (occupied == 0) "Nenhum inquilino" else if (expanded) "Ocultar inquilinos" else "Ver inquilinos",
-                        transitionSpec = { fadeIn(tween(180, delayMillis = 60)) togetherWith fadeOut(tween(90)) using SizeTransform(clip = false) },
-                        contentAlignment = Alignment.CenterEnd, label = "unit toggle label") { label ->
-                        Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, textAlign = TextAlign.End)
+                    // The slot keeps the width of the label at rest, so the pile's room never changes. The longer
+                    // "Ocultar inquilinos" reaches left into the room the pile has just left.
+                    val resting = if (occupied == 0) "Nenhum inquilino" else "Ver inquilinos"
+                    Box {
+                        Text(resting, Modifier.alpha(0f).clearAndSetSemantics { }, style = MaterialTheme.typography.labelLarge)
+                        AnimatedContent(if (occupied == 0) "Nenhum inquilino" else if (expanded) "Ocultar inquilinos" else "Ver inquilinos",
+                            Modifier.matchParentSize().wrapContentWidth(Alignment.End, unbounded = true),
+                            transitionSpec = { fadeIn(tween(180, delayMillis = 60)) togetherWith fadeOut(tween(90)) using SizeTransform(clip = false) },
+                            contentAlignment = Alignment.CenterEnd, label = "unit toggle label") { label ->
+                            Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, textAlign = TextAlign.End)
+                        }
                     }
                     IconButton(onClick = { expanded = !expanded }) {
                         Icon(Icons.Rounded.ExpandMore, if (expanded) "Recolher inquilinos" else "Mostrar inquilinos", Modifier.rotate(rotation))

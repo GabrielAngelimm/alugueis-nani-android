@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -92,8 +94,9 @@ fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Mo
 
 /**
  * The people of a unit at a glance: their monograms overlap like portraits on a fridge door.
- * Only people who live there are shown, at most [maxFaces]; the rest are counted in a quiet
- * "+N" pill. [face] lets a caller attach each portrait to a transition, keyed by its position.
+ * Only people who live there are shown, at most [maxFaces] and no more than fit the width the
+ * pile is given; the rest are counted in a quiet "+N" pill. [face] lets a caller attach each
+ * portrait to a transition, keyed by its position.
  */
 @Composable
 fun ResidentsPile(
@@ -105,22 +108,38 @@ fun ResidentsPile(
     face: @Composable (index: Int) -> Modifier = { Modifier }
 ) {
     val colors = MaterialTheme.colorScheme
-    val faces = names.take(maxFaces)
-    val hidden = names.size - faces.size
     val overlap = size * .18f
-    val spoken = faces.joinToString(", ") + if (hidden > 0) " e mais $hidden" else ""
-    Row(modifier.clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(-overlap)) {
-        faces.forEachIndexed { index, name ->
-            // The ring sits on the portrait's own edge, so a portrait keeps one size whether it is
-            // stacked here or standing alone in a list, and can travel between the two.
-            Monogram(name, face(index).border(2.dp, ring, CircleShape), size = size)
+    val pillGap = 8.dp
+    val pillPadding = 9.dp
+    val countStyle = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier) {
+        // A narrow row drops portraits from the end, and the pill counts them instead.
+        fun widthOf(shown: Int): Dp {
+            val hidden = names.size - shown
+            val pill = if (hidden == 0) 0.dp else pillGap + pillPadding * 2 +
+                with(density) { measurer.measure("+$hidden", countStyle, maxLines = 1).size.width.toDp() }
+            return size * shown - overlap * (shown - 1) + pill
         }
-        if (hidden > 0) {
-            Text("+$hidden", Modifier.padding(start = overlap + 8.dp).clip(CircleShape)
-                .background(colors.surfaceContainerHigh).padding(horizontal = 9.dp, vertical = 3.dp),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = colors.onSurfaceVariant, maxLines = 1)
+        val most = minOf(names.size, maxFaces)
+        val shown = if (!constraints.hasBoundedWidth) most
+            else (most downTo 1).firstOrNull { widthOf(it) <= maxWidth } ?: minOf(most, 1)
+        val faces = names.take(shown)
+        val hidden = names.size - faces.size
+        val spoken = faces.joinToString(", ") + if (hidden > 0) " e mais $hidden" else ""
+        Row(Modifier.clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(-overlap)) {
+            faces.forEachIndexed { index, name ->
+                // The ring sits on the portrait's own edge, so a portrait keeps one size whether it is
+                // stacked here or standing alone in a list, and can travel between the two.
+                Monogram(name, face(index).border(2.dp, ring, CircleShape), size = size)
+            }
+            if (hidden > 0) {
+                Text("+$hidden", Modifier.padding(start = overlap + pillGap).clip(CircleShape)
+                    .background(colors.surfaceContainerHigh).padding(horizontal = pillPadding, vertical = 3.dp),
+                    style = countStyle, color = colors.onSurfaceVariant, maxLines = 1)
+            }
         }
     }
 }
