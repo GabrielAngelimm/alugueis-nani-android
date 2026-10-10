@@ -1,10 +1,15 @@
 package com.rentalvalidator.app.presentation.ui.registration
 
 import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,6 +20,8 @@ import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -22,29 +29,34 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.rentalvalidator.app.domain.model.OperationalStatus
+import androidx.compose.ui.unit.sp
 import com.rentalvalidator.app.domain.model.RentalUnit
 import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.components.NaniTextField
+import com.rentalvalidator.app.presentation.design.BankCoin
 import com.rentalvalidator.app.presentation.design.DetailIdentity
-import com.rentalvalidator.app.presentation.design.NaniChoice
+import com.rentalvalidator.app.presentation.design.Monogram
 import com.rentalvalidator.app.presentation.design.NaniDetailHero
-import com.rentalvalidator.app.presentation.design.UnitTile
+import com.rentalvalidator.app.presentation.theme.NaniSerif
+import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.ui.tenants.CpfVisualTransformation
 import com.rentalvalidator.app.presentation.ui.tenants.PhoneVisualTransformation
 import com.rentalvalidator.app.presentation.ui.tenants.TenantAliasesEditor
 import com.rentalvalidator.app.presentation.ui.tenants.UnitGroupGlyph
 import com.rentalvalidator.app.presentation.ui.tenants.formatPhoneForDB
 import com.rentalvalidator.app.presentation.ui.tenants.glyph
-import com.rentalvalidator.app.presentation.ui.tenants.noun
 import com.rentalvalidator.app.presentation.ui.tenants.validMoney
 import com.rentalvalidator.app.util.CpfUtils
 import com.rentalvalidator.app.util.CurrencyUtils
@@ -158,6 +170,7 @@ internal fun TenantRegistration(
         stepper = flow.stepper,
         onTrail = { flow.open(TenantStep.entries[it]) },
         onClose = onClose,
+        preview = { TenantPreview(flow) },
         footer = {
             FlowFooter(
                 backLabel = if (flow.stepper.current == 0) firstBackLabel else "Voltar",
@@ -186,13 +199,15 @@ internal fun TenantRegistration(
                     error(TenantField.DUE_DAY))
             }
             TenantStep.CONTACT -> StepPage("Como falar com $who?",
-                "O telefone é usado nas cobranças e nos lembretes pelo WhatsApp. Tudo aqui pode ficar para depois.", optional = true) {
+                "O telefone é usado nas cobranças e nos lembretes pelo WhatsApp. Nome no WhatsApp e CPF podem ficar para depois.") {
+                val phone = requesters.getValue(TenantField.PHONE)
+                LaunchedEffect(Unit) { if (flow.draft.phone.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { phone.requestFocus() } } }
                 NaniTextField(draft.phone, { flow.edit(TenantField.PHONE) { copy(phone = it.filter(Char::isDigit).take(11)) } }, "Telefone",
-                    helperText = "DDD e número", visualTransformation = PhoneVisualTransformation(),
+                    required = true, helperText = "DDD e número", visualTransformation = PhoneVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { runCatching { whatsapp.requestFocus() } }),
                     isError = error(TenantField.PHONE) != null, errorMessage = error(TenantField.PHONE),
-                    focusRequester = requesters.getValue(TenantField.PHONE))
+                    focusRequester = phone)
                 NaniTextField(draft.whatsappName, { flow.edit(null) { copy(whatsappName = it) } }, "Nome no WhatsApp",
                     helperText = if (draft.firstName.isBlank()) "Como a pessoa é chamada nas mensagens" else "Se ficar em branco: ${draft.firstName}",
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
@@ -206,11 +221,10 @@ internal fun TenantRegistration(
                     focusRequester = requesters.getValue(TenantField.CPF))
             }
             TenantStep.STATEMENT -> StepPage("Como o pagamento chega?",
-                "O banco filtra a conferência do extrato. Outros nomes ajudam a reconhecer transferências feitas por outra pessoa.",
-                optional = true) {
+                "O banco filtra a conferência do extrato. Outros nomes ajudam a reconhecer transferências feitas por outra pessoa.") {
                 Column {
                     ControlLabel("Banco")
-                    ChipChoices(TenantBanks, draft.bank) { bank -> flow.edit(null) { copy(bank = bank) } }
+                    BankChoices(TenantBanks, draft.bank) { bank -> flow.edit(null) { copy(bank = bank) } }
                 }
                 TenantAliasesEditor(flow.aliasInput, draft.aliases, { flow.aliasInput = it }, onAdd = flow::addAlias,
                     onRemove = { alias -> flow.edit(null) { copy(aliases = aliases - alias) } }, label = "Outro nome no extrato",
@@ -233,41 +247,72 @@ private fun AnimatedVisibilityScope.NamePage(flow: TenantFlowState, focus: Focus
     }
 }
 
-/** A place the tenant can live in: a registered unit, the unit the registration was opened from, or Geral. */
-private data class UnitOption(val name: String, val detail: String, val unit: RentalUnit?)
-
-private fun unitOptions(units: List<RentalUnit>, chosen: String): List<UnitOption> {
-    val registered = units.sortedBy { it.name.lowercase() }.map { unit ->
-        val occupancy = "${unit.tenantCount} de ${unit.capacity} ${unit.capacityKind.noun(unit.capacity)}"
-        val state = when {
-            unit.operationalStatus == OperationalStatus.INACTIVE -> "Inativa"
-            unit.operationalStatus == OperationalStatus.MAINTENANCE -> "Em manutenção"
-            unit.tenantCount >= unit.capacity -> "Lotada"
-            else -> null
-        }
-        UnitOption(unit.name, listOfNotNull(unit.location.ifBlank { null }, occupancy, state).joinToString(" · "), unit)
-    }
-    val names = registered.map { it.name.lowercase() }
-    val extra = listOf(chosen, RentalUnit.GERAL_NAME).distinct().filter { it.isNotBlank() && it.lowercase() !in names }.map {
-        UnitOption(it, if (it == RentalUnit.GERAL_NAME) "Sem unidade definida" else "Agrupamento de inquilinos", null)
-    }
-    return registered + extra
+/**
+ * The places a tenant can live in, by name: the registered units in order, then the unit the
+ * registration was opened from when it has no record, and Geral.
+ */
+private fun unitChoices(units: List<RentalUnit>, chosen: String): List<String> {
+    val registered = units.map { it.name }.sortedBy { it.lowercase() }
+    val names = registered.map { it.lowercase() }
+    return registered + listOf(chosen, RentalUnit.GERAL_NAME).distinct().filter { it.isNotBlank() && it.lowercase() !in names }
 }
 
 @Composable
 private fun AnimatedVisibilityScope.UnitPage(flow: TenantFlowState, who: String, units: List<RentalUnit>) {
-    val options = remember(units) { unitOptions(units, flow.start.unit) }
+    val choices = remember(units) { unitChoices(units, flow.start.unit) }
     StepPage("Em qual unidade $who mora?",
         "A unidade organiza os inquilinos por endereço e mostra a ocupação de cada imóvel.") {
-        Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            options.forEach { option ->
-                NaniChoice(option.name, option.detail, selected = flow.draft.unit == option.name,
-                    onClick = { flow.edit(null) { copy(unit = option.name) } },
-                    leading = { UnitTile(option.unit?.type?.glyph() ?: UnitGroupGlyph, size = 44.dp) })
-            }
+        CoverChoices(choices, flow.draft.unit, label = { it }, labelStyle = UnitName,
+            glyph = { name -> units.firstOrNull { it.name.equals(name, ignoreCase = true) }?.type?.glyph() ?: UnitGroupGlyph }) { name ->
+            flow.edit(null) { copy(unit = name) }
         }
         if (units.isEmpty()) FlowHint(Icons.Rounded.Info,
             "Ainda não há unidades cadastradas. O inquilino fica em Geral e pode mudar de unidade depois, na edição do cadastro.")
+    }
+}
+
+/** A unit's name on its card, in the ledger's hand, as on the unit's own cover. */
+private val UnitName = TextStyle(fontFamily = NaniSerif, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp)
+
+/**
+ * The tenant's cover taking shape above the questions: the name, then the unit (once its step is
+ * reached), the rent and the due day, and the bank's coin pinned to the monogram once there is one.
+ */
+@Composable
+private fun TenantPreview(flow: TenantFlowState) {
+    val draft = flow.draft
+    // The engraving and the monogram's tone follow the name as it stood when the page turned, so they do not shift with every letter.
+    val settled = remember(flow.stepper.current) { draft.name.trim() }.ifBlank { "inquilino" }
+    val amount = draft.amount.takeIf { validMoney(it) }?.let { CurrencyUtils.format(it.replace(',', '.').toDouble()) }
+    // Where the tenant lives on the first line, what they pay on the second.
+    val line = listOfNotNull(draft.unit.takeIf { flow.stepper.furthest >= TenantStep.UNIT.ordinal && it.isNotBlank() },
+        listOfNotNull(amount, draft.dueDay?.let { "todo dia $it" }).joinToString(" · ").ifBlank { null })
+        .joinToString("\n").ifBlank { null }
+    FlowPreview(seed = settled, unit = false, name = draft.name, placeholder = "Nome do inquilino", line = line,
+        linePlaceholder = "Unidade, aluguel e vencimento",
+        mark = { cover -> TenantMark(draft.name, settled, draft.bank.takeUnless { it == NoBank }, cover) })
+}
+
+/**
+ * The tenant's monogram once there is a name, in a halo of the cover's light; before it, an empty
+ * disc drawn in pencil. The [bank] the rent arrives through rides on its corner, like a badge.
+ */
+@Composable
+private fun TenantMark(name: String, tone: String, bank: String?, cover: Float) {
+    val colors = MaterialTheme.colorScheme
+    val nani = NaniTheme.colors
+    Box(Modifier.size(48.dp)) {
+        Box(Modifier.matchParentSize().background(nani.onPlaque.copy(alpha = .16f * cover), CircleShape).padding(3.dp),
+            contentAlignment = Alignment.Center) {
+            Crossfade(name.isNotBlank(), label = "preview mark") { named ->
+                if (named) Monogram(name, size = 42.dp, tone = tone)
+                else Box(Modifier.size(42.dp).border(1.5.dp, colors.outlineVariant, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Person, null, Modifier.size(20.dp), tint = colors.outline)
+                }
+            }
+        }
+        if (bank != null) BankCoin(bank, Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp)
+            .border(2.dp, lerp(colors.surface, nani.coverEnd, cover), CircleShape), size = 22.dp)
     }
 }
 

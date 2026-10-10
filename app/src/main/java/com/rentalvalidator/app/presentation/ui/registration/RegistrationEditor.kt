@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -155,10 +156,10 @@ internal fun RegistrationEditor(
 private fun RegistrationChooser(hasUnits: Boolean, onClose: () -> Unit, onChoose: (RegistrationKind) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         FlowTopBar("Novo cadastro", null, null, onClose)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding()
             .padding(horizontal = AppSpace.page).padding(top = 12.dp, bottom = 32.dp)) {
             StepHeading("Locações", "O que você quer cadastrar?",
-                "Uma pergunta por vez. No final, você confere tudo antes de salvar.", optional = false)
+                "Uma pergunta por vez. No final, você confere tudo antes de salvar.")
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 KindCard("Inquilino", "A pessoa que aluga: nome, unidade, valor do aluguel, vencimento e contato.",
                     "6 etapas, com revisão", Icons.Rounded.Person, unit = false) { onChoose(RegistrationKind.TENANT) }

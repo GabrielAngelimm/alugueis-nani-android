@@ -140,10 +140,22 @@ private fun HeroTitle(title: String, color: Color) {
  */
 @Composable
 private fun HeroCover(seed: String, unit: Boolean, content: @Composable RowScope.() -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).engravedCover(seed, unit).padding(20.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), content = content)
+}
+
+/**
+ * Paints a cover behind what it holds, at any size: passbook blue lit from the upper right and
+ * engraved from [seed], with rings for a person or, for a place ([unit]), courses on a shade
+ * toward steel. [reveal] fades the whole cover in, for a card that becomes a cover when chosen; it
+ * is read while drawing, so the fade never recomposes. The engraving runs past the edges by
+ * design, so the cover clips to its bounds; a caller clips it to a shape before.
+ */
+@Composable
+internal fun Modifier.engravedCover(seed: String, unit: Boolean, reveal: () -> Float = { 1f }): Modifier {
     val nani = NaniTheme.colors
     val engraving = remember(seed) { engravingOf(seed) }
-    // The engraving runs past the edges by design; the cover keeps it off the facts below.
-    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).clipToBounds().drawWithCache {
+    return clipToBounds().drawWithCache {
         val width = size.width
         val height = size.height
         val lines = if (unit) {
@@ -181,12 +193,14 @@ private fun HeroCover(seed: String, unit: Boolean, content: @Composable RowScope
             .65f to nani.onPlaque.copy(alpha = .14f), 1f to nani.onPlaque.copy(alpha = .14f))
         val line = Stroke(.75.dp.toPx())
         onDrawBehind {
-            drawRect(ground)
-            lines.forEach { drawPath(it, ink, style = line) }
-            drawRect(glow)
+            val alpha = reveal().coerceIn(0f, 1f)
+            if (alpha > 0f) {
+                drawRect(ground, alpha = alpha)
+                lines.forEach { drawPath(it, ink, alpha = alpha, style = line) }
+                drawRect(glow, alpha = alpha)
+            }
         }
-    }.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
-        content = content)
+    }
 }
 
 /** The disc inside a cover's mark; the halo around it brings the mark to 64dp. */

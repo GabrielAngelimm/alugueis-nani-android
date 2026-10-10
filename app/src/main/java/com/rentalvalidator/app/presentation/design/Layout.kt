@@ -12,17 +12,19 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -155,28 +156,37 @@ fun NaniSection(
     }
 }
 
-/** Long forms own the whole window. Back and dismiss keep the existing unsaved-edit behavior. */
+/**
+ * Long forms own the whole window. Back and dismiss keep the existing unsaved-edit behavior.
+ *
+ * The window lays out behind the system bars and the keyboard instead of being fitted or panned by
+ * the system: the editor keeps the status bar clear and leaves the bottom to its content, which
+ * lifts its own actions with the keyboard (`imePadding`) and clears the navigation bar. Nothing is
+ * pushed off the top when a field takes focus.
+ */
 @Composable
 fun NaniEditor(onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    // Read insets from the host window: a decor-fitting Dialog reports zero system bars.
-    val hostBars = WindowInsets.systemBars.asPaddingValues()
-    val availableHeight = LocalConfiguration.current.screenHeightDp.dp - hostBars.calculateTopPadding() - hostBars.calculateBottomPadding()
     Dialog(onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)) {
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val view = LocalView.current
         val window = (view.parent as DialogWindowProvider).window
         val light = MaterialTheme.colorScheme.background.luminance() > .5f
         SideEffect {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             window.decorView.elevation = 0f
-            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+            @Suppress("DEPRECATION")
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
             androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = light
                 isAppearanceLightNavigationBars = light
             }
         }
-        Surface(Modifier.heightIn(max = availableHeight).fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                contentAlignment = Alignment.TopCenter) {
                 Box(Modifier.widthIn(max = AppSize.editorMaxWidth).fillMaxSize()) { content() }
             }
         }
