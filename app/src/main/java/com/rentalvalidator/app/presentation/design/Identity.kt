@@ -75,13 +75,14 @@ private fun Modifier.matchParentSizeInset(size: Dp) = this.size(size).padding(si
 
 /**
  * A unit shown by what it is (house, apartment, building...) rather than by letters. The tile is
- * the same tinted glass as the navigation lens: light from above and a fine rim.
+ * the same tinted glass as the navigation lens, light from above and a fine rim, and round like
+ * the monograms of the people who live there.
  */
 @Composable
 fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: Dp = 52.dp) {
     val colors = MaterialTheme.colorScheme
     val dark = NaniTheme.colors.isDark
-    val shape = RoundedCornerShape(size * .3f)
+    val shape = CircleShape
     Box(modifier.size(size).clearAndSetSemantics { }.clip(shape)
         .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
             androidx.compose.ui.graphics.lerp(colors.primaryContainer, androidx.compose.ui.graphics.Color.White, if (dark) .06f else .2f),
