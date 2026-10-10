@@ -19,7 +19,6 @@ import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 
 /** Other names under which this tenant's transfers appear in bank statements. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TenantAliasesSection(aliasInput: String, aliases: List<String>, onInput: (String) -> Unit,
     onAdd: () -> Unit, onRemove: (String) -> Unit) {
@@ -27,7 +26,15 @@ internal fun TenantAliasesSection(aliasInput: String, aliases: List<String>, onI
         title = stringResource(R.string.statement_identity),
         subtitle = "Nomes que aparecem nas transferências do extrato, como o de quem paga pela pessoa",
         icon = Icons.Rounded.Sell
-    ) {
+    ) { TenantAliasesEditor(aliasInput, aliases, onInput, onAdd, onRemove) }
+}
+
+/** The entry field and the chips of a tenant's statement names, without a heading of its own. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun TenantAliasesEditor(aliasInput: String, aliases: List<String>, onInput: (String) -> Unit,
+    onAdd: () -> Unit, onRemove: (String) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
             NaniTextField(aliasInput, onInput, stringResource(R.string.new_alias), Modifier.weight(1f))
             FilledIconButton(onClick = onAdd, enabled = aliasInput.isNotBlank(), modifier = Modifier.size(56.dp),

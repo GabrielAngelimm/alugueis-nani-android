@@ -64,6 +64,7 @@ Inquilino e unidade abrem com um único cartão. O topo é uma capa azul-profund
 | `PrimaryButton`, `SecondaryButton`, `TonalButton`, `DangerButton` | `components/Buttons.kt` | Hierarquia de ações |
 | `NaniTextField`, `NaniDropdownField` | `components/Fields.kt` | Campos: caixa preenchida apoiada na pauta |
 | `AppNavigation`, `AppNavigationRail` | `components/AppNavigation.kt` | Cápsula flutuante com lente deslizante; trilho lateral em telas largas |
+| `GuidedFlow`, `StepPage`, `ReviewPage`, `FlowFooter`, `DueDayPicker`, `GlyphChoices`, `CountStepper`, `ReviewLine` | `ui/registration/` | Cadastro guiado: trilha de etapas, perguntas, escolhas visuais e revisão; as regras de cada etapa ficam em `RegistrationDrafts.kt` e são testadas em `RegistrationDraftsTest` |
 
 Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e diálogos 28dp. O espaçamento usa múltiplos de 4dp, margem lateral de 20dp e 32dp entre seções.
 
@@ -80,6 +81,14 @@ Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e d
 ## Movimento
 
 `AppMotion` concentra durações e curvas. As seções compartilham um eixo horizontal: ir para uma seção à direita na barra desliza a página da direita, e voltar desliza da esquerda. Na barra, a lente da seção ativa estica a caminho do destino (a borda da frente com mola mais rígida que a de trás) e o ícone ganha preenchimento com um pequeno salto. Páginas abertas a partir de outra deslizam no sentido de leitura. Expansões usam 240ms com desaceleração firme. No card da unidade, abrir a lista leva cada retrato da fileira até a linha do respectivo inquilino (`SharedTransitionLayout`, mola `AppMotion.Travel`), e os nomes entram em seguida, uma linha após a outra; fechar faz o caminho inverso, e o card recolhe na mesma mola para nunca cortar um retrato no trajeto. Animações respeitam a escala de animação do sistema.
+
+## Cadastro guiado
+
+O "+" de Locações abre uma escolha entre inquilino e unidade, cada um num cartão com uma faixa da capa azul. O cadastro segue uma pergunta por página, escrita como conversa ("Quanto e quando Marina paga?"), com perguntas próximas agrupadas: valor e vencimento, telefone e CPF, nome e endereço. Inquilino tem seis etapas (nome, unidade, aluguel, contato, extrato e revisão); unidade tem cinco (tipo, nome e endereço, capacidade, detalhes e revisão). Contato, extrato e detalhes são opcionais e marcados assim.
+
+No topo, uma barra fina mostra o avanço e uma trilha de abas lista as etapas: as já respondidas trazem a resposta e podem ser reabertas, a atual fica em tinta e as próximas esperam em lápis. Avançar só valida a etapa da tela, com o erro junto ao campo e o foco nele; Voltar, inclusive o do sistema, recua uma pergunta sem perder nada. A revisão repete a capa da página de detalhe com o que será salvo e lista cada resposta, que abre a etapa para correção e volta direto à revisão. Fechar com respostas pede confirmação. Erros ao salvar aparecem na própria revisão, e a confirmação de uma unidade nova oferece cadastrar o primeiro inquilino nela.
+
+Campos, validações e o registro gravado são os mesmos dos formulários completos, que continuam sendo usados para editar.
 
 ## Manutenção
 

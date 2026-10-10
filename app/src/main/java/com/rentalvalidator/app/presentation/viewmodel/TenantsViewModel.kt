@@ -45,13 +45,18 @@ class TenantsViewModel @Inject constructor(
     ) { current, previous -> current + previous }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addTenant(tenant: Tenant, onSuccess: () -> Unit = {}) = perform(onSuccess) { repository.insertTenant(tenant) }
+    fun addTenant(tenant: Tenant, onSuccess: () -> Unit = {}, onError: ((String) -> Unit)? = null) =
+        perform(onSuccess, onError) { repository.insertTenant(tenant) }
     fun updateTenant(tenant: Tenant, onSuccess: () -> Unit = {}) = perform(onSuccess) { repository.updateTenant(tenant) }
     fun deleteTenant(tenant: Tenant, onSuccess: () -> Unit = {}) = perform(onSuccess) { repository.deleteTenant(tenant) }
 
-    private fun perform(onSuccess: () -> Unit, operation: suspend () -> Unit) = viewModelScope.launch {
+    /** Failures go to [onError] when the caller shows them itself, such as an open editor; otherwise to [errors]. */
+    private fun perform(onSuccess: () -> Unit, onError: ((String) -> Unit)? = null, operation: suspend () -> Unit) = viewModelScope.launch {
         try { operation(); onSuccess() }
         catch (cancelled: CancellationException) { throw cancelled }
-        catch (failure: Exception) { errorChannel.send(failure.message ?: "Não foi possível salvar o cadastro.") }
+        catch (failure: Exception) {
+            val message = failure.message ?: "Não foi possível salvar o cadastro."
+            if (onError != null) onError(message) else errorChannel.send(message)
+        }
     }
 }

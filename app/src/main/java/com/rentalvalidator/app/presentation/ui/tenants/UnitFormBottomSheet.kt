@@ -33,7 +33,7 @@ import com.rentalvalidator.app.presentation.theme.AppSpace
 import java.time.Instant
 import java.util.UUID
 
-private val unitTypeLabels = mapOf(
+internal val unitTypeLabels = mapOf(
     UnitType.APARTMENT to "Apartamento",
     UnitType.HOUSE to "Casa",
     UnitType.COMMERCIAL_ROOM to "Sala comercial",
@@ -41,7 +41,7 @@ private val unitTypeLabels = mapOf(
     UnitType.KITNET to "Kitnet",
     UnitType.OTHER to "Outro"
 )
-private val unitTypeIcons = mapOf(
+internal val unitTypeIcons = mapOf(
     UnitType.APARTMENT to Icons.Rounded.Apartment,
     UnitType.HOUSE to Icons.Rounded.Home,
     UnitType.COMMERCIAL_ROOM to Icons.Rounded.Store,
@@ -49,12 +49,12 @@ private val unitTypeIcons = mapOf(
     UnitType.KITNET to Icons.Rounded.MeetingRoom,
     UnitType.OTHER to Icons.Rounded.OtherHouses
 )
-private val capacityKindLabels = mapOf(
+internal val capacityKindLabels = mapOf(
     CapacityKind.TENANTS to "Inquilinos",
     CapacityKind.ROOMS to "Quartos",
     CapacityKind.SPACES to "Espaços"
 )
-private val statusLabels = mapOf(
+internal val statusLabels = mapOf(
     OperationalStatus.ACTIVE to "Ativa",
     OperationalStatus.INACTIVE to "Inativa",
     OperationalStatus.MAINTENANCE to "Em manutenção"

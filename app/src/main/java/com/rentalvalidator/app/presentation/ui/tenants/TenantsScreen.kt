@@ -21,9 +21,13 @@ import com.rentalvalidator.app.domain.model.Tenant
 import com.rentalvalidator.app.presentation.components.*
 import com.rentalvalidator.app.presentation.design.DialogText
 import com.rentalvalidator.app.presentation.design.NaniConfirmDialog
+import com.rentalvalidator.app.presentation.ui.registration.RegistrationEditor
+import com.rentalvalidator.app.presentation.ui.registration.RegistrationKind
+import com.rentalvalidator.app.presentation.ui.registration.RegistrationRequest
 import com.rentalvalidator.app.presentation.viewmodel.RentReminderViewModel
 import com.rentalvalidator.app.presentation.viewmodel.TenantsViewModel
 import com.rentalvalidator.app.presentation.viewmodel.UnitsViewModel
+import kotlinx.coroutines.launch
 
 internal enum class TenantViewMode { UNITS, ALL }
 
@@ -47,6 +51,8 @@ fun TenantsScreen(
     reminderViewModel: RentReminderViewModel? = null
 ) {
     val showSnackbar = rememberAppSnackbar()
+    val snackbars = LocalAppSnackbarHostState.current
+    val scope = rememberCoroutineScope()
     LaunchedEffect(viewModel) { viewModel.errors.collect { showSnackbar(it) } }
     val tenants by viewModel.tenants.collectAsStateWithLifecycle()
     val units by unitsViewModel.units.collectAsStateWithLifecycle()
@@ -69,6 +75,8 @@ fun TenantsScreen(
     var formUnit by remember { mutableStateOf<RentalUnit?>(null) }
     var formUnitInitialName by remember { mutableStateOf<String?>(null) }
     var showUnitForm by remember { mutableStateOf(false) }
+    // New tenants and units are registered step by step; the full forms above edit existing records.
+    var registration by remember { mutableStateOf<RegistrationRequest?>(null) }
 
     var showFilters by remember { mutableStateOf(false) }
     var filterBank by remember { mutableStateOf<String?>(null) }
@@ -139,12 +147,7 @@ fun TenantsScreen(
                             else -> showUnitTenantPicker = true
                         }
                     },
-                    onAdd = {
-                        formTenant = null
-                        formInitialUnit = unitName
-                        formViewOnly = false
-                        showForm = true
-                    },
+                    onAdd = { registration = RegistrationRequest(RegistrationKind.TENANT, unitName) },
                     onDeleteUnit = {
                         realUnit?.let { deleting -> unitsViewModel.deleteUnit(deleting.id,
                             onSuccess = { selectedUnitName = null }, onError = { showSnackbar(it) }) }
@@ -168,10 +171,9 @@ fun TenantsScreen(
                 onUnit = { selectedUnitName = it },
                 onTenant = { detailTenantId = it.id },
                 onFilters = { showFilters = true },
-                onAdd = {
-                    if (mode == TenantViewMode.UNITS) { formUnit = null; formUnitInitialName = null; showUnitForm = true }
-                    else { formTenant = null; formInitialUnit = null; formViewOnly = false; showForm = true }
-                },
+                onAdd = { registration = RegistrationRequest() },
+                onAddUnit = { registration = RegistrationRequest(RegistrationKind.UNIT) },
+                onAddTenant = { registration = RegistrationRequest(RegistrationKind.TENANT) },
                 listState = overviewState
             )
         }
@@ -238,6 +240,33 @@ fun TenantsScreen(
                     },
                     onError = { message -> showSnackbar(message) }
                 )
+            }
+        )
+    }
+
+    registration?.let { request ->
+        RegistrationEditor(
+            request = request,
+            units = units,
+            onDismiss = { registration = null },
+            isUnitNameTaken = { unitsViewModel.nameExists(it) },
+            onSaveTenant = { tenant, onError ->
+                viewModel.addTenant(tenant, onSuccess = {
+                    registration = null
+                    showSnackbar("Cadastro de ${tenant.name} concluído")
+                }, onError = onError)
+            },
+            onSaveUnit = { unit, onError ->
+                unitsViewModel.saveUnit(unit, isNew = true, onError = onError, onSuccess = {
+                    registration = null
+                    // The next thing after a new unit is usually its first tenant, so the confirmation offers it.
+                    scope.launch {
+                        snackbars.currentSnackbarData?.dismiss()
+                        val result = snackbars.showSnackbar("Unidade ${unit.name} cadastrada", actionLabel = "Adicionar inquilino",
+                            duration = SnackbarDuration.Long)
+                        if (result == SnackbarResult.ActionPerformed) registration = RegistrationRequest(RegistrationKind.TENANT, unit.name)
+                    }
+                })
             }
         )
     }
