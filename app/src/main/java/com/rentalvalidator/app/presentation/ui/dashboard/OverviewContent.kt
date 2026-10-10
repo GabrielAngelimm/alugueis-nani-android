@@ -145,8 +145,8 @@ private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPaymen
                     segments = ringOf(stats),
                     description = if (counts.total > 0) "${counts.paid} de ${counts.total} aluguéis pagos em $month, " +
                         "${counts.upcoming} a vencer e ${counts.overdue} em atraso" else "Nenhum aluguel previsto",
-                    size = 92.dp, stroke = 10.dp
-                ) { RingLabel(if (counts.total > 0) "$percent%" else "—", 92.dp, caption = "pagos") }
+                    size = 88.dp, stroke = 10.dp
+                ) { RingLabel(if (counts.total > 0) "$percent%" else "—", 88.dp, caption = "pagos") }
             }
             Spacer(Modifier.height(18.dp))
             if (data.tenantCount == 0) {
