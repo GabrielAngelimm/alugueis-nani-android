@@ -153,16 +153,15 @@ private fun DayCell(day: Int, selected: Boolean, onClick: () -> Unit, modifier: 
 }
 
 /**
- * The kinds of property as cards, two to a row (three on a wide screen): each with its mark, its
- * name and a line on what it covers. The chosen card turns into a small unit cover, the same steel
- * blue as the page the unit will open, so the answer already looks like what it makes.
+ * The kinds of property as cards, two to a row (three on a wide screen), each with its mark and its
+ * name, compact enough for all of them to fit on one screen. The chosen card turns into a small unit
+ * cover, the same steel blue as the page the unit will open, so the answer already looks like what it makes.
  */
 @Composable
 internal fun <T> TypeCards(
     options: List<T>,
     selected: T,
     label: (T) -> String,
-    detail: (T) -> String,
     glyph: (T) -> ImageVector,
     onSelect: (T) -> Unit
 ) {
@@ -170,10 +169,10 @@ internal fun <T> TypeCards(
         val perRow = if (maxWidth < 560.dp) 2 else 3
         Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             options.chunked(perRow).forEach { row ->
-                // Cards in a row share one height, so a two-line note never leaves a neighbour short.
+                // Cards in a row share one height, so a name that wraps at a large font never leaves a neighbour short.
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { option ->
-                        TypeCard(label(option), detail(option), glyph(option), option == selected, { onSelect(option) },
+                        TypeCard(label(option), glyph(option), option == selected, { onSelect(option) },
                             Modifier.weight(1f).fillMaxHeight())
                     }
                     repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
@@ -184,7 +183,7 @@ internal fun <T> TypeCards(
 }
 
 @Composable
-private fun TypeCard(label: String, detail: String, glyph: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun TypeCard(label: String, glyph: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val nani = NaniTheme.colors
     val shape = RoundedCornerShape(AppSize.sheetRadius)
@@ -213,7 +212,7 @@ private fun TypeCard(label: String, detail: String, glyph: ImageVector, selected
         }
         .border(1.dp, colors.outlineVariant.copy(alpha = 1f - cover), shape)
         .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
-        .heightIn(min = 132.dp)
+        .heightIn(min = 112.dp)
         .padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             TypeMark(glyph, cover)
@@ -224,11 +223,8 @@ private fun TypeCard(label: String, detail: String, glyph: ImageVector, selected
             }
         }
         Spacer(Modifier.weight(1f).heightIn(min = 14.dp))
-        Text(label, style = MaterialTheme.typography.titleSmall, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 1,
+        Text(label, style = MaterialTheme.typography.titleSmall, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 2,
             overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(3.dp))
-        Text(detail, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
-            color = lerp(colors.onSurfaceVariant, nani.onPlaque.copy(alpha = .8f), cover))
     }
 }
 

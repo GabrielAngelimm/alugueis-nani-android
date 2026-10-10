@@ -137,16 +137,6 @@ private fun UnitType.thisOne(): Pair<String, String> = when (this) {
 private val TypeOrder = listOf(UnitType.HOUSE, UnitType.APARTMENT, UnitType.KITNET, UnitType.BUILDING,
     UnitType.COMMERCIAL_ROOM, UnitType.OTHER)
 
-/** What each kind covers, in a line under its name, so the choice is made without guessing. */
-private fun UnitType.hint(): String = when (this) {
-    UnitType.HOUSE -> "Com entrada própria"
-    UnitType.APARTMENT -> "Em prédio ou condomínio"
-    UnitType.KITNET -> "Compacta, de um só cômodo"
-    UnitType.BUILDING -> "Várias unidades num só endereço"
-    UnitType.COMMERCIAL_ROOM -> "Loja, escritório ou consultório"
-    UnitType.OTHER -> "Quarto, vaga, galpão e outros"
-}
-
 private val statusNotes = mapOf(
     OperationalStatus.ACTIVE to "Recebendo inquilinos",
     OperationalStatus.INACTIVE to "Fora de uso por enquanto",
@@ -202,7 +192,7 @@ internal fun UnitRegistration(
         when (UnitStep.entries[index]) {
             UnitStep.TYPE -> StepPage("Que tipo de imóvel é?",
                 "O tipo dá o ícone da unidade, que aparece nas listas e na página dela.") {
-                TypeCards(TypeOrder, draft.type, { it.displayName() }, { it.hint() }, { it.glyph() }) { type ->
+                TypeCards(TypeOrder, draft.type, { it.displayName() }, { it.glyph() }) { type ->
                     flow.edit(null) { copy(type = type) }
                 }
             }
