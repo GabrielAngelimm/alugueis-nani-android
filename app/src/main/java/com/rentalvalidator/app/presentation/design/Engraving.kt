@@ -8,10 +8,11 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * The guilloché printed on a detail cover, like the fine security lines of a savings passbook:
- * concentric rings that ripple out from the lit corner. It is derived from a name, so every
- * tenant and unit keeps its own engraving on every visit. Every value is a fraction of the
- * cover, so the pattern holds at any size.
+ * The guilloché printed on a detail cover, like the fine security lines of a savings passbook.
+ * A tenant's cover carries concentric rings that ripple out from the lit corner, like a
+ * fingerprint; a unit's carries straight courses that run across the light, like the ruled
+ * ground of a deed. Both are derived from a name, so every tenant and unit keeps its own
+ * engraving on every visit. Every value is a fraction of the cover, so the pattern holds at any size.
  */
 @Immutable
 internal data class Engraving(
@@ -56,4 +57,28 @@ internal fun Engraving.ringRadius(index: Int, angle: Float, width: Float, height
     val opened = (RingGrowth.pow(index) - 1f) / (RingGrowth.pow(EngravingRings - 1) - 1f)
     val ripple = amplitude * height * sin(waves * angle + phase + index * twist)
     return first + (last - first) * opened + ripple
+}
+
+/** Gap between two courses of a unit's engraving, as a fraction of the cover's height. */
+private const val CourseGap = .12f
+
+/** How far a course climbs for each step to the left, so the courses run across the light instead of toward it. */
+private const val CourseSlope = .55f
+
+/** Where the ink of an engraving starts, as a fraction of the cover's width; the mark sits to the left of it. */
+internal const val EngravingInkFrom = .25f
+
+/** How many courses it takes to rule a [width] by [height] cover from the lit corner down to where the ink starts. */
+internal fun engravingCourses(width: Float, height: Float): Int =
+    ((height + width * (1f - EngravingInkFrom) * CourseSlope) / (height * CourseGap)).toInt() + 2
+
+/**
+ * Height of course [index] at [x] on a [width] by [height] cover. The first course leaves the
+ * right edge at the top corner and each one after it a fixed gap lower; all of them climb at the
+ * same slope toward the left. Each course ripples gently along its length, a little ahead of the
+ * one above it, so the courses flow without crossing.
+ */
+internal fun Engraving.courseY(index: Int, x: Float, width: Float, height: Float): Float {
+    val ripple = amplitude * height * sin(waves * .7f * x / height + phase + index * twist)
+    return height * CourseGap * index - (width - x) * CourseSlope + ripple
 }

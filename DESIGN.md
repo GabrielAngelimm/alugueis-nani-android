@@ -22,9 +22,10 @@ A interface parte do objeto que o aplicativo substitui: a caderneta de aluguéis
 | Marca-texto (pendente) | `#573700` sobre `#FBE8A8` | `#FBE3A5` sobre `#3A3013` | Em aberto, a vencer |
 | Carimbo (atraso) | `#B0372D` sobre `#FAE2DD` | `#FF9E91` sobre `#4C1E19` | Vencido, erro |
 | Placa | `#233886` | `#3A50A8` | Selo do aplicativo |
-| Capa | `#3651B8` a `#1F3277` | `#3245A1` a `#17225A` | Topo das páginas de detalhe, com texto `#F4F6FF` |
+| Capa do inquilino | `#4864C2` a `#2B4290` | `#3A50AE` a `#1C2A66` | Topo do detalhe do inquilino, com texto `#F4F6FF` |
+| Capa da unidade | `#4468A0` a `#26446F` | `#34568A` a `#172C4E` | Topo do detalhe da unidade, com texto `#F4F6FF`; a marca usa `#26446F` sobre `#DCE6F3` (escuro: `#C4D5EE` sobre `#1D2E4A`) |
 
-As cores ficam em `presentation/theme/Color.kt`. Papéis que o Material 3 não define (estados de pagamento, placa, capa, preenchimento de ação, trilho dos anéis e monogramas) são expostos por `NaniTheme.colors`. As telas escolhem um papel, nunca um valor hexadecimal.
+As cores ficam em `presentation/theme/Color.kt`. Papéis que o Material 3 não define (estados de pagamento, placa, capas, marca da unidade, preenchimento de ação, trilho dos anéis e monogramas) são expostos por `NaniTheme.colors`. As telas escolhem um papel, nunca um valor hexadecimal.
 
 ## Tipografia
 
@@ -45,7 +46,7 @@ A barra é uma cápsula flutuante sobre o conteúdo, que corre por trás dela e 
 
 ## Capa das páginas de detalhe
 
-Inquilino e unidade abrem com um único cartão. O topo é uma capa azul-profunda, como a de uma caderneta de poupança, iluminada no canto superior direito e gravada com um guilloché: anéis finos e concêntricos que irradiam da luz, cada um com ondulações suaves que giram de leve de um anel para o outro, como as linhas de segurança de um documento. Os anéis nunca se cruzam, abrem-se aos poucos à medida que se afastam do canto e se dissolvem antes de chegar à marca, deixando limpa a área do texto. A gravura é derivada do nome, então cada inquilino e cada unidade tem a sua e a reencontra a cada visita. Sobre a capa ficam, numa só linha de leitura, a marca (o monograma do inquilino num halo de luz, ou o ícone do tipo de imóvel num vidro fosco), o nome em Fraunces e o subtítulo (a unidade do inquilino ou o endereço da unidade). O nome usa o maior corpo que o mantém em até duas linhas (26, 23 ou 20sp) e só nomes muito longos chegam a três. Abaixo da capa, no mesmo cartão, ficam os dois fatos principais. De dia, o cartão tem uma sombra tingida com o azul da capa; à noite, a própria capa faz o destaque.
+Inquilino e unidade abrem com um único cartão. O topo é uma capa azul, como a de uma caderneta de poupança, iluminada no canto superior direito e gravada com um guilloché, como as linhas de segurança de um documento. As duas capas são da mesma família, mas nunca se confundem. A do inquilino é azul-caderneta e leva anéis finos e concêntricos que irradiam da luz, como uma impressão digital, cada um com ondulações suaves que giram de leve de um anel para o outro. A da unidade puxa para o azul-aço e leva linhas paralelas, quase retas, que atravessam a luz, como o fundo pautado de uma escritura, cada uma com uma ondulação suave que corre um pouco adiante da linha de cima. Os traços nunca se cruzam e se dissolvem antes de chegar à marca, deixando limpa a área do texto. A gravura é derivada do nome, então cada inquilino e cada unidade tem a sua e a reencontra a cada visita. Sobre a capa ficam, numa só linha de leitura, a marca, o nome em Fraunces e o subtítulo (a unidade do inquilino ou o endereço da unidade). A marca é sempre um disco de 58dp num halo de luz de 3dp: o monograma do inquilino, ou o ícone do tipo de imóvel desenhado como um monograma, em tinta de aço sobre um disco claro. O nome usa o maior corpo que o mantém em até duas linhas (26, 23 ou 20sp) e só nomes muito longos chegam a três. Abaixo da capa, no mesmo cartão, ficam os dois fatos principais. De dia, o cartão tem uma sombra tingida com o azul da sua capa; à noite, a própria capa faz o destaque.
 
 ## Componentes
 
@@ -55,9 +56,9 @@ Inquilino e unidade abrem com um único cartão. O topo é uma capa azul-profund
 | `LedgerSheet`, `LedgerSlice`, `LedgerRule`, `NaniActionRow`, `NaniFact` | `design/Ledger.kt` | Folhas pautadas e linhas de lista |
 | `StatusMark` | `design/Status.kt` | Carimbo, marca-texto, tracejado e contorno |
 | `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend`, `dueStats`, `ringOf` | `design/Progress.kt` | Anéis por contagem do Início, de Receber e de Docs, com contadores e legendas da mesma lista; nos contadores do Início, cada estado ocupa uma coluna igual, com o número centralizado e sublinhado por um traço curto na cor do seu arco no anel (o traço fica no tom do trilho quando o estado está vazio), separadas por fios de mesma altura; a geometria (`ringMarks`) é testada em `RingMathTest` |
-| `Monogram`, `UnitTile`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades: o ícone do tipo de imóvel (`UnitTile`) marca cada unidade no card e no detalhe; no rodapé do card, até quatro retratos sobrepostos dos moradores e um "+N" discreto para os demais |
+| `Monogram`, `UnitTile`, `UnitPlaque`, `ResidentsPile`, `NaniSheetTenantCard` | `design/Identity.kt` | Identidade de pessoas e unidades: o ícone do tipo de imóvel (`UnitTile`), num círculo de vidro redondo como os monogramas, marca cada unidade no card; no rodapé do card, até quatro retratos sobrepostos dos moradores e um "+N" discreto para os demais |
 | `NaniDetailHero`, `NaniDetailCard`, `NaniDetailAction` | `design/Detail.kt` | Páginas de detalhe: capa com marca, nome e subtítulo; abaixo, os dois fatos principais sempre na mesma linha, separados por um fio |
-| `engravingOf`, `ringRadius` | `design/Engraving.kt` | Gravura da capa derivada do nome; a geometria é testada em `EngravingTest` |
+| `engravingOf`, `ringRadius`, `courseY` | `design/Engraving.kt` | Gravura da capa derivada do nome: anéis para inquilinos, linhas paralelas para unidades; a geometria é testada em `EngravingTest` |
 | `NaniSheet`, `NaniChoice` | `design/NaniSheet.kt` | Painéis inferiores e escolhas exclusivas |
 | `NaniConfirmDialog` | `design/Dialogs.kt` | Confirmações com verbo de ação |
 | `AppEmptyState`, `AppLoadingState`, `AppErrorState` | `design/States.kt` | Estados vazios, carregamento e erro |

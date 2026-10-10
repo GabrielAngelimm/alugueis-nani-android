@@ -56,9 +56,14 @@ data class NaniColors(
     val neutral: StatusTone,
     val plaque: Color,
     val onPlaque: Color,
-    /** The cover of a detail page, like a savings passbook: lit corner to deep corner. Text on it uses [onPlaque]. */
+    /** The cover of a tenant's page, like a savings passbook: lit corner to deep corner. Text on it uses [onPlaque]. */
     val coverStart: Color,
     val coverEnd: Color,
+    /** The cover of a unit's page: the same passbook a shade toward steel, so a place never reads as a person. */
+    val unitCoverStart: Color,
+    val unitCoverEnd: Color,
+    /** A unit's mark on its cover, built like a monogram: [Pair.first] fills the disc, [Pair.second] draws the icon. */
+    val unitMark: Pair<Color, Color>,
     /** Fill of the single strongest action. At night it stays saturated so it never reads as disabled. */
     val action: Color,
     val onAction: Color,
@@ -80,8 +85,11 @@ internal val LightNaniColors = NaniColors(
     neutral = StatusTone(InkMuted, PaperDeep, Ink),
     plaque = Color(0xFF233886),
     onPlaque = Color(0xFFF4F6FF),
-    coverStart = Color(0xFF3651B8),
-    coverEnd = Color(0xFF1F3277),
+    coverStart = Color(0xFF4864C2),
+    coverEnd = Color(0xFF2B4290),
+    unitCoverStart = Color(0xFF4468A0),
+    unitCoverEnd = Color(0xFF26446F),
+    unitMark = Color(0xFFDCE6F3) to Color(0xFF26446F),
     action = Pen,
     onAction = Color.White,
     rule = Rule,
@@ -105,8 +113,11 @@ internal val DarkNaniColors = NaniColors(
     neutral = StatusTone(InkMutedNight, SheetNightHigh, InkNight),
     plaque = Color(0xFF3A50A8),
     onPlaque = Color(0xFFF4F6FF),
-    coverStart = Color(0xFF3245A1),
-    coverEnd = Color(0xFF17225A),
+    coverStart = Color(0xFF3A50AE),
+    coverEnd = Color(0xFF1C2A66),
+    unitCoverStart = Color(0xFF34568A),
+    unitCoverEnd = Color(0xFF172C4E),
+    unitMark = Color(0xFF1D2E4A) to Color(0xFFC4D5EE),
     action = Color(0xFF4460D6),
     onAction = Color.White,
     rule = RuleNight,

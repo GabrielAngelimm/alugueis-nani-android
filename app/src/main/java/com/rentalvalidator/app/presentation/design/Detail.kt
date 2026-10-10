@@ -1,7 +1,6 @@
 package com.rentalvalidator.app.presentation.design
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
@@ -65,9 +63,10 @@ enum class DetailIdentity { TENANT, UNIT }
 
 /**
  * The head of a detail page as one card. Its cover holds who or what the page is about: the
- * mark, the name and the line under it, set on deep blue with a guilloché engraved from the name.
- * Below the cover, the two numbers that define the record share one line with a divider; when
- * either is too wide for its half, both are set smaller by the same amount, so they stay level.
+ * mark, the name and the line under it, set on passbook blue with a guilloché engraved from the
+ * name. A unit's cover leans toward steel and is ruled instead of ringed, so a place and a person
+ * never look alike. Below the cover, the two numbers that define the record share one line with a
+ * divider; when either is too wide for its half, both are set smaller by the same amount, so they stay level.
  */
 @Composable
 fun NaniDetailHero(
@@ -82,15 +81,17 @@ fun NaniDetailHero(
     unitIcon: ImageVector? = null
 ) {
     val nani = NaniTheme.colors
+    val unit = identity == DetailIdentity.UNIT
+    val deep = if (unit) nani.unitCoverEnd else nani.coverEnd
     val shape = RoundedCornerShape(AppSize.sheetRadius)
     // By day the card lifts off the paper on a shadow tinted with the cover; at night the cover's glow is enough.
-    val lift = if (nani.isDark) Modifier else Modifier.shadow(14.dp, shape, ambientColor = nani.coverEnd.copy(alpha = .16f),
-        spotColor = nani.coverEnd.copy(alpha = .3f))
+    val lift = if (nani.isDark) Modifier else Modifier.shadow(14.dp, shape, ambientColor = deep.copy(alpha = .16f),
+        spotColor = deep.copy(alpha = .3f))
     Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(top = 4.dp, bottom = 24.dp).then(lift),
         shape = shape, color = MaterialTheme.colorScheme.surface) {
         Column {
-            HeroCover(seed = title) {
-                if (identity == DetailIdentity.UNIT) UnitCoverMark(title, unitIcon) else PersonCoverMark(title)
+            HeroCover(seed = title, unit = unit) {
+                CoverMark { if (unit) UnitDisc(title, unitIcon) else Monogram(title, size = CoverDisc) }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     HeroTitle(title, nani.onPlaque)
                     Row {
@@ -133,64 +134,83 @@ private fun HeroTitle(title: String, color: Color) {
     }
 }
 
-/** Deep blue lit from the upper right, engraved with fine rings that ripple out from the light. */
+/**
+ * Passbook blue lit from the upper right. A tenant's cover is engraved with fine rings that ripple
+ * out from the light; a unit's is a shade toward steel and ruled with fine courses across it.
+ */
 @Composable
-private fun HeroCover(seed: String, content: @Composable RowScope.() -> Unit) {
+private fun HeroCover(seed: String, unit: Boolean, content: @Composable RowScope.() -> Unit) {
     val nani = NaniTheme.colors
     val engraving = remember(seed) { engravingOf(seed) }
-    // Rings run past the edges by design; the cover keeps them off the facts below.
+    // The engraving runs past the edges by design; the cover keeps it off the facts below.
     Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).clipToBounds().drawWithCache {
         val width = size.width
         val height = size.height
-        val center = Offset(width * EngravingCenterX, height * EngravingCenterY)
-        // From a little before straight down to a little past straight left: the quarter that covers the cover.
-        val angles = List(141) { (.47f + it * .004f) * PI.toFloat() }
-        val rings = List(EngravingRings) { index ->
-            Path().apply {
-                angles.forEachIndexed { step, angle ->
-                    val radius = engraving.ringRadius(index, angle, width, height)
-                    val x = center.x + radius * cos(angle)
-                    val y = center.y + radius * sin(angle)
-                    if (step == 0) moveTo(x, y) else lineTo(x, y)
+        val lines = if (unit) {
+            // Courses are only drawn where there is ink, from a quarter of the way in to the right edge.
+            val xs = List(121) { width * (EngravingInkFrom + it * (1f - EngravingInkFrom) / 120) }
+            List(engravingCourses(width, height)) { index ->
+                Path().apply {
+                    xs.forEachIndexed { step, x ->
+                        val y = engraving.courseY(index, x, width, height)
+                        if (step == 0) moveTo(x, y) else lineTo(x, y)
+                    }
+                }
+            }
+        } else {
+            val center = Offset(width * EngravingCenterX, height * EngravingCenterY)
+            // From a little before straight down to a little past straight left: the quarter that covers the cover.
+            val angles = List(141) { (.47f + it * .004f) * PI.toFloat() }
+            List(EngravingRings) { index ->
+                Path().apply {
+                    angles.forEachIndexed { step, angle ->
+                        val radius = engraving.ringRadius(index, angle, width, height)
+                        val x = center.x + radius * cos(angle)
+                        val y = center.y + radius * sin(angle)
+                        if (step == 0) moveTo(x, y) else lineTo(x, y)
+                    }
                 }
             }
         }
-        val ground = Brush.linearGradient(listOf(nani.coverStart, nani.coverEnd), start = Offset(width, 0f), end = Offset(0f, height))
+        val ground = Brush.linearGradient(if (unit) listOf(nani.unitCoverStart, nani.unitCoverEnd) else listOf(nani.coverStart, nani.coverEnd),
+            start = Offset(width, 0f), end = Offset(0f, height))
         val glow = Brush.radialGradient(listOf(Color.White.copy(alpha = .12f), Color.Transparent),
             center = Offset(width * .94f, -height * .15f), radius = height * 1.4f)
-        // The rings fade out toward the left, so the mark and the start of the name sit on clear blue.
-        val ink = Brush.horizontalGradient(0f to Color.Transparent, .25f to Color.Transparent,
+        // The engraving fades out toward the left, so the mark and the start of the name sit on clear blue.
+        val ink = Brush.horizontalGradient(0f to Color.Transparent, EngravingInkFrom to Color.Transparent,
             .65f to nani.onPlaque.copy(alpha = .14f), 1f to nani.onPlaque.copy(alpha = .14f))
         val line = Stroke(.75.dp.toPx())
         onDrawBehind {
             drawRect(ground)
-            rings.forEach { drawPath(it, ink, style = line) }
+            lines.forEach { drawPath(it, ink, style = line) }
             drawRect(glow)
         }
     }.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
         content = content)
 }
 
-/** A person on the cover: their own monogram, set in a halo of the cover's light. */
+/** The disc inside a cover's mark; the halo around it brings the mark to 64dp. */
+private val CoverDisc = 58.dp
+
+/** Every cover mark is the same round disc, set in a halo of the cover's light. */
 @Composable
-private fun PersonCoverMark(name: String) {
+private fun CoverMark(disc: @Composable () -> Unit) {
     Box(Modifier.size(64.dp).clearAndSetSemantics { }.background(NaniTheme.colors.onPlaque.copy(alpha = .16f), CircleShape)
-        .padding(3.dp)) {
-        Monogram(name, size = 58.dp)
+        .padding(3.dp), contentAlignment = Alignment.Center) {
+        disc()
     }
 }
 
-/** A unit on the cover: what it is, drawn in light on a pane of frosted glass. */
+/** A unit on the cover: what it is, drawn like a monogram, with its type's icon in place of letters. */
 @Composable
-private fun UnitCoverMark(name: String, icon: ImageVector?) {
-    val light = NaniTheme.colors.onPlaque
-    val shape = RoundedCornerShape(19.dp)
-    Box(Modifier.size(64.dp).clearAndSetSemantics { }.clip(shape)
-        .background(Brush.verticalGradient(listOf(light.copy(alpha = .24f), light.copy(alpha = .08f))))
-        .border(1.dp, light.copy(alpha = .3f), shape), contentAlignment = Alignment.Center) {
-        if (icon != null) Icon(icon, null, Modifier.size(30.dp), tint = light)
+private fun UnitDisc(name: String, icon: ImageVector?) {
+    val (fill, ink) = NaniTheme.colors.unitMark
+    // Letters are sized in dp, as in a monogram: the disc is a fixed glyph, not running text.
+    val letters = with(LocalDensity.current) { (CoverDisc * .38f).toSp() }
+    Box(Modifier.size(CoverDisc).background(fill, CircleShape), contentAlignment = Alignment.Center) {
+        if (icon != null) Icon(icon, null, Modifier.size(28.dp), tint = ink)
         else Text(initialsOf(name), style = TextStyle(fontFamily = NaniSerifText,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 22.sp), color = light)
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = letters), color = ink)
     }
 }
 
