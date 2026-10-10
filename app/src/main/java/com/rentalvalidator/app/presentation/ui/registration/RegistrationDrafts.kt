@@ -30,7 +30,7 @@ internal val TenantBanks = listOf(NoBank, "Itaú", "Santander", "Nubank", "Merca
     "Banco do Brasil", "Inter", "Caixa", "Sicredi")
 
 internal enum class TenantStep(val title: String, val optional: Boolean = false) {
-    NAME("Nome"), UNIT("Unidade"), RENT("Aluguel"), CONTACT("Contato", optional = true),
+    NAME("Nome"), UNIT("Unidade"), RENT("Aluguel"), CONTACT("Contato"),
     STATEMENT("Extrato", optional = true), REVIEW("Revisão")
 }
 
@@ -59,7 +59,9 @@ internal data class TenantDraft(
                 if (dueDay == null || dueDay !in 1..31) put(TenantField.DUE_DAY, "Escolha o dia de vencimento, de 1 a 31")
             }
             TenantStep.CONTACT -> {
-                if (!validOptionalPhone(phone)) put(TenantField.PHONE, "Informe DDD + 8 dígitos (fixo) ou 9 dígitos começando com 9 (celular)")
+                // A new tenant always has a phone; the full form still saves without one, for older records.
+                if (phone.isBlank()) put(TenantField.PHONE, "Informe o telefone com DDD")
+                else if (!validOptionalPhone(phone)) put(TenantField.PHONE, "Informe DDD + 8 dígitos (fixo) ou 9 dígitos começando com 9 (celular)")
                 if (!validOptionalCpf(cpf)) put(TenantField.CPF, "Informe um CPF válido com 11 dígitos ou deixe em branco")
             }
             TenantStep.STATEMENT -> Unit
@@ -140,16 +142,13 @@ internal fun capacityInput(value: String): String? = value.takeIf { it.matches(R
 /** Keeps a money entry to what the full form accepts while typing: digits and one decimal separator. */
 internal fun moneyInput(value: String): String? = value.takeIf { it.matches(Regex("^\\d*[.,]?\\d*$")) }
 
-/** How a tenant's step reads once answered: in the trail and as the first line of its review entry. */
+/** How a tenant's step reads once answered, as the step rule reads it out to assistive technology. */
 internal fun TenantDraft.summary(step: TenantStep): String? = when (step) {
     TenantStep.NAME -> name.trim().ifBlank { null }
     TenantStep.UNIT -> unit
     TenantStep.RENT -> listOfNotNull(amount.takeIf { validMoney(it) }?.let { CurrencyUtils.format(it.replace(',', '.').toDouble()) },
         dueDay?.let { "dia $it" }).joinToString(" · ").ifBlank { null }
-    TenantStep.CONTACT -> phone.takeIf { it.isNotBlank() }?.let(::formatPhoneForDB)
-        ?: whatsappName.trim().ifBlank { null }
-        ?: cpf.takeIf { it.isNotBlank() }?.let { "CPF ${CpfUtils.format(it)}" }
-        ?: "Sem contato"
+    TenantStep.CONTACT -> phone.takeIf { it.isNotBlank() }?.let(::formatPhoneForDB) ?: "Sem telefone"
     TenantStep.STATEMENT -> listOfNotNull(bank.takeUnless { it == NoBank },
         aliases.size.takeIf { it > 0 }?.let { if (it == 1) "1 outro nome" else "$it outros nomes" })
         .joinToString(" · ").ifBlank { "Sem banco" }

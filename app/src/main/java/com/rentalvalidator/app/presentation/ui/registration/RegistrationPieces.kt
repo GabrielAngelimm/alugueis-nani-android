@@ -1,15 +1,10 @@
 package com.rentalvalidator.app.presentation.ui.registration
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -22,15 +17,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -82,6 +77,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.design.LedgerRule
@@ -238,28 +234,57 @@ private fun TypeMark(glyph: ImageVector, cover: Float) {
     }
 }
 
-/** Short exclusive choices that wrap like chips, such as the bank a rent arrives through. */
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * Short exclusive choices as a grid of equal tiles, such as the bank a rent arrives through or the
+ * unit a tenant lives in: as many columns as fit tiles of [minTileWidth], two at least and four at
+ * most. A tile never changes size when chosen (its check rides on the corner), so nothing around
+ * it moves while the person taps through the options.
+ */
 @Composable
-internal fun ChipChoices(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    FlowRow(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { option ->
-            val chosen = option == selected
-            val colors = MaterialTheme.colorScheme
-            val fill by animateColorAsState(if (chosen) colors.primaryContainer else colors.surface, tween(AppMotion.StateDuration),
-                label = "chip fill")
-            Row(Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp)).background(fill)
-                .border(1.dp, if (chosen) colors.primary else colors.outlineVariant, RoundedCornerShape(12.dp))
-                .selectable(chosen, role = Role.RadioButton) { onSelect(option) }
-                .padding(horizontal = 14.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AnimatedVisibility(chosen, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
-                    Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = colors.primary)
+internal fun TileChoices(options: List<String>, selected: String, minTileWidth: Dp, onSelect: (String) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val gap = 10.dp
+        val columns = ((maxWidth + gap) / (minTileWidth + gap)).toInt().coerceIn(2, 4)
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(gap)) {
+            options.chunked(columns).forEach { row ->
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    row.forEach { option ->
+                        ChoiceTile(option, option == selected, { onSelect(option) }, Modifier.weight(1f).fillMaxHeight())
+                    }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-                Text(option, style = MaterialTheme.typography.labelLarge,
-                    color = if (chosen) colors.onPrimaryContainer else colors.onSurface)
             }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceTile(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val nani = NaniTheme.colors
+    val shape = RoundedCornerShape(AppSize.controlRadius)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) .97f else 1f, AppMotion.PressScale, label = "tile press")
+    val chosen by animateFloatAsState(if (selected) 1f else 0f, tween(AppMotion.StateDuration, easing = AppMotion.Settle),
+        label = "tile chosen")
+    val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
+        label = "tile badge")
+    Box(modifier.graphicsLayer { scaleX = press; scaleY = press }) {
+        // Tall enough for a two-line name, so every row of the grid keeps one height.
+        Box(Modifier.fillMaxSize().heightIn(min = 60.dp).clip(shape)
+            .background(lerp(colors.surface, colors.primaryContainer, chosen))
+            .border(if (selected) 1.5.dp else 1.dp, lerp(colors.outlineVariant, colors.primary, chosen), shape)
+            .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
+                overflow = TextOverflow.Ellipsis, color = lerp(colors.onSurface, colors.onPrimaryContainer, chosen))
+        }
+        Box(Modifier.align(Alignment.TopEnd).offset(x = 5.dp, y = (-5).dp).size(20.dp)
+            .graphicsLayer { alpha = badge.coerceIn(0f, 1f); scaleX = badge; scaleY = badge }
+            .background(nani.action, CircleShape).border(2.dp, colors.background, CircleShape),
+            contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Check, null, Modifier.size(12.dp), tint = nani.onAction)
         }
     }
 }

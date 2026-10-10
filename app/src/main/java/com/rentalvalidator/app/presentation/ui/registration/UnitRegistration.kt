@@ -224,7 +224,7 @@ internal fun UnitRegistration(
                     focusRequester = requesters.getValue(UnitField.CAPACITY), onDone = { focusManager.clearFocus() })
             }
             UnitStep.DETAILS -> StepPage("Mais algum detalhe?",
-                "Tudo aqui é opcional. A situação diz se a unidade está recebendo inquilinos.", optional = true) {
+                "Tudo aqui é opcional. A situação diz se a unidade está recebendo inquilinos.") {
                 Column {
                     ControlLabel("Situação")
                     Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
