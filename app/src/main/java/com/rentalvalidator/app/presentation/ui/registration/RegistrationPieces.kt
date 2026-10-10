@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -84,6 +85,8 @@ import com.rentalvalidator.app.presentation.design.BankCoin
 import com.rentalvalidator.app.presentation.design.LedgerRule
 import com.rentalvalidator.app.presentation.design.bankMarkOf
 import com.rentalvalidator.app.presentation.design.engravedCover
+import com.rentalvalidator.app.presentation.design.rememberWordFitScale
+import com.rentalvalidator.app.presentation.design.scaled
 import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
@@ -152,11 +155,12 @@ private fun DayCell(day: Int, selected: Boolean, onClick: () -> Unit, modifier: 
 }
 
 /**
- * Choices that each stand for a place, as cards two to a row (three on a wide screen): the kinds
- * of property, or the units a tenant can live in. Each card carries its mark and its name, compact
- * enough for a whole set to fit on one screen. The chosen card turns into a small unit cover, the
- * ruled steel blue of the page the unit opens on, so the answer already looks like what it makes.
- * [labelStyle] sets the names: a kind reads as a label, a unit's name in the ledger's hand.
+ * Choices that each stand for a place, as compact cards two to a row (three on a wide screen): the
+ * kinds of property, or the units a tenant can live in. Each card carries its mark beside its name,
+ * small enough for a whole set to fit on one screen. At rest a card is a pale wash of steel; the
+ * chosen one fills in as a small unit cover, the ruled steel blue of the page the unit opens on, so
+ * the answer already looks like what it makes. [labelStyle] sets the names: a kind reads as a
+ * label, a unit's name in the ledger's hand.
  */
 @Composable
 internal fun <T> CoverChoices(
@@ -169,12 +173,16 @@ internal fun <T> CoverChoices(
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val perRow = if (maxWidth < 560.dp) 2 else 3
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val gap = 10.dp
+        // Every card's names share one size, eased down just enough that no word breaks on a narrow phone.
+        val text = (maxWidth - gap * (perRow - 1)) / perRow - CoverPadding * 2 - CoverMarkSize - CoverGap
+        val fit = rememberWordFitScale(options.map(label), labelStyle, text)
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(gap)) {
             options.chunked(perRow).forEach { row ->
-                // Cards in a row share one height, so a name that wraps at a large font never leaves a neighbour short.
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Cards in a row share one height, so a name that wraps never leaves a neighbour short.
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
                     row.forEach { option ->
-                        CoverCard(label(option), glyph(option), labelStyle, option == selected, { onSelect(option) },
+                        CoverCard(label(option), glyph(option), labelStyle.scaled(fit), option == selected, { onSelect(option) },
                             Modifier.weight(1f).fillMaxHeight())
                     }
                     repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
@@ -189,7 +197,7 @@ private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, 
                       modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val nani = NaniTheme.colors
-    val shape = RoundedCornerShape(AppSize.sheetRadius)
+    val shape = RoundedCornerShape(AppSize.controlRadius + 2.dp)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) .97f else 1f, AppMotion.PressScale, label = "cover press")
@@ -197,37 +205,57 @@ private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, 
         label = "cover chosen")
     val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
         label = "cover badge")
+    // At rest the card is already tinted with the steel it turns into, so choosing it reads as the color filling in.
+    val rest = lerp(colors.surface, nani.unitCoverStart, if (nani.isDark) .16f else .09f)
     // Only the chosen card stands off the page, and only by day; at night the cover's own light is enough.
-    val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(10.dp * cover, shape,
+    val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(8.dp * cover, shape,
         ambientColor = nani.unitCoverEnd.copy(alpha = .14f), spotColor = nani.unitCoverEnd.copy(alpha = .3f))
-    Column(modifier
+    Row(modifier
         .graphicsLayer { scaleX = press; scaleY = press }
         .then(lift)
         .clip(shape)
-        .background(colors.surface)
+        .background(rest)
         .engravedCover(label, unit = true, reveal = { cover })
-        .border(1.dp, colors.outlineVariant.copy(alpha = 1f - cover), shape)
+        .border(1.dp, nani.unitCoverStart.copy(alpha = (if (nani.isDark) .34f else .2f) * (1f - cover)), shape)
         .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
-        .heightIn(min = 112.dp)
-        .padding(16.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            CoverMark(glyph, cover)
-            Spacer(Modifier.weight(1f))
-            ChosenBadge(badge, nani.onPlaque, nani.unitCoverEnd)
-        }
-        Spacer(Modifier.weight(1f).heightIn(min = 14.dp))
-        Text(label, style = labelStyle, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 2,
-            overflow = TextOverflow.Ellipsis)
+        .heightIn(min = 64.dp)
+        .padding(CoverPadding),
+        verticalAlignment = Alignment.CenterVertically) {
+        CoverMark(glyph, cover, size = CoverMarkSize, rest = if (nani.isDark) colors.surfaceContainerHighest else colors.surface,
+            check = badge)
+        Spacer(Modifier.width(CoverGap))
+        Text(label, Modifier.weight(1f), style = labelStyle, color = lerp(colors.onSurface, nani.onPlaque, cover),
+            maxLines = 3, overflow = TextOverflow.Ellipsis)
     }
 }
 
-/** A place's mark, built like the unit's mark on its cover: the icon on a steel disc, ringed in light once chosen. */
+private val CoverPadding = 12.dp
+private val CoverMarkSize = 36.dp
+private val CoverGap = 10.dp
+
+/**
+ * A place's mark, built like the unit's mark on its cover: the icon on a disc that turns steel and
+ * is ringed in light once chosen. [rest] is the disc before that; [check] springs a small check
+ * onto its corner.
+ */
 @Composable
-internal fun CoverMark(glyph: ImageVector, cover: Float) {
-    val (fill, ink) = NaniTheme.colors.unitMark
-    Box(Modifier.size(48.dp).background(NaniTheme.colors.onPlaque.copy(alpha = .18f * cover), CircleShape).padding(3.dp)
-        .background(fill, CircleShape), contentAlignment = Alignment.Center) {
-        Icon(glyph, null, Modifier.size(22.dp), tint = ink)
+internal fun CoverMark(
+    glyph: ImageVector,
+    cover: Float,
+    size: Dp = 48.dp,
+    rest: Color = NaniTheme.colors.unitMark.first,
+    check: Float = 0f
+) {
+    val nani = NaniTheme.colors
+    val (fill, ink) = nani.unitMark
+    Box(Modifier.size(size)) {
+        Box(Modifier.matchParentSize().background(nani.onPlaque.copy(alpha = .18f * cover), CircleShape).padding(3.dp)
+            .background(lerp(rest, fill, cover), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(glyph, null, Modifier.size(size * .48f), tint = ink)
+        }
+        if (check > 0f) Box(Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp)) {
+            ChosenBadge(check, nani.onPlaque, nani.unitCoverEnd, size = 17.dp)
+        }
     }
 }
 
@@ -241,10 +269,11 @@ private fun ChosenBadge(progress: Float, fill: Color, ink: Color, size: Dp = 24.
 }
 
 /**
- * The bank a rent arrives through, as cards three to a row on a phone: each bank's coin over its
- * name, the way a payment app lists banks. The chosen card takes on the bank's own color, like a
- * card picked out of a wallet, and its coin turns over; "no bank" turns ink-dark instead. No card
- * changes size when chosen, so nothing moves while the person taps through them.
+ * The bank a rent arrives through, as cards three to a row on a phone: each bank's official mark
+ * on a coin over its name, the way a payment app lists banks. The chosen card takes on the bank's
+ * own color, like a card picked out of a wallet, and its coin turns over to the white seal; "no
+ * bank" turns ink-dark instead. No card changes size when chosen, so nothing moves while the
+ * person taps through them.
  */
 @Composable
 internal fun BankChoices(banks: List<String>, selected: String, onSelect: (String) -> Unit) {
@@ -280,8 +309,10 @@ private fun BankCard(bank: String, selected: Boolean, onClick: () -> Unit, modif
         label = "bank badge")
     val lift = if (nani.isDark || chosen == 0f) Modifier else Modifier.shadow(8.dp * chosen, shape,
         ambientColor = fill.copy(alpha = .18f), spotColor = fill.copy(alpha = .36f))
+    // At rest the card is paper a shade off white, so the bank's own mark is what stands out.
+    val rest = if (nani.isDark) colors.surfaceContainer else colors.surfaceContainerLow
     Box(modifier.graphicsLayer { scaleX = press; scaleY = press }.then(lift)) {
-        Column(Modifier.fillMaxSize().clip(shape).background(colors.surface)
+        Column(Modifier.fillMaxSize().clip(shape).background(rest)
             .drawBehind {
                 if (chosen > 0f) {
                     // The bank's color, lit from the upper right like every cover in the app.
@@ -293,13 +324,13 @@ private fun BankCard(bank: String, selected: Boolean, onClick: () -> Unit, modif
             }
             .border(1.dp, colors.outlineVariant.copy(alpha = 1f - chosen), shape)
             .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
-            .heightIn(min = 108.dp)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            // Once chosen the coin turns over: the bank's ink becomes its face, in a ring of light.
-            Box(Modifier.size(44.dp).background(ink.copy(alpha = .22f * chosen), CircleShape), contentAlignment = Alignment.Center) {
-                if (none) BankCoin(bank, size = 36.dp, none = true, ink = lerp(colors.outline, ink, chosen))
-                else BankCoin(bank, size = 36.dp, fill = lerp(fill, ink, chosen), ink = lerp(ink, fill, chosen))
+            .padding(horizontal = 8.dp, vertical = 14.dp),
+            // Coins line up across a row; a name that wraps hangs below its coin instead of pushing it up.
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
+            // Once chosen the coin turns over to the bank's white seal, in a ring of light.
+            Box(Modifier.size(48.dp).background(ink.copy(alpha = .22f * chosen), CircleShape), contentAlignment = Alignment.Center) {
+                if (none) BankCoin(bank, size = 40.dp, none = true, ink = lerp(colors.outline, ink, chosen))
+                else BankCoin(bank, size = 40.dp, turned = chosen)
             }
             Spacer(Modifier.height(8.dp))
             Text(bank, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,

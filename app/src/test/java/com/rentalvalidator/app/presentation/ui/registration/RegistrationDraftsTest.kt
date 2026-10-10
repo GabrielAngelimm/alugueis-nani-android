@@ -4,6 +4,7 @@ import com.rentalvalidator.app.domain.model.CapacityKind
 import com.rentalvalidator.app.domain.model.OperationalStatus
 import com.rentalvalidator.app.domain.model.RentalUnit
 import com.rentalvalidator.app.domain.model.UnitType
+import com.rentalvalidator.app.presentation.design.bankMarkOf
 import com.rentalvalidator.app.presentation.ui.tenants.unitTypeIcons
 import com.rentalvalidator.app.util.CurrencyUtils
 import org.junit.Assert.*
@@ -129,5 +130,13 @@ class RegistrationDraftsTest {
         assertEquals("", moneyInput(""))
         assertNull(moneyInput("1,2,3"))
         assertNull(moneyInput("R$"))
+    }
+
+    @Test fun everyListedBankShowsItsOwnMark() {
+        // A bank offered in the registration without a mark would fall back to bare initials.
+        assertTrue(TenantBanks.filter { it != NoBank }.all { bankMarkOf(it) != null })
+        assertNull(bankMarkOf(NoBank))
+        // No two banks share a coin.
+        assertEquals(TenantBanks.size - 1, TenantBanks.mapNotNull { bankMarkOf(it)?.coin }.toSet().size)
     }
 }
