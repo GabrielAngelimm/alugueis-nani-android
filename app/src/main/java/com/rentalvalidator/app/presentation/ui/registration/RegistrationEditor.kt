@@ -161,9 +161,9 @@ private fun RegistrationChooser(hasUnits: Boolean, onClose: () -> Unit, onChoose
                 "Uma pergunta por vez. No final, você confere tudo antes de salvar.", optional = false)
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 KindCard("Inquilino", "A pessoa que aluga: nome, unidade, valor do aluguel, vencimento e contato.",
-                    "6 etapas, com revisão", Icons.Rounded.Person) { onChoose(RegistrationKind.TENANT) }
+                    "6 etapas, com revisão", Icons.Rounded.Person, unit = false) { onChoose(RegistrationKind.TENANT) }
                 KindCard("Unidade", "O imóvel: tipo, nome, endereço, capacidade e situação.",
-                    "5 etapas, com revisão", Icons.Rounded.Home) { onChoose(RegistrationKind.UNIT) }
+                    "5 etapas, com revisão", Icons.Rounded.Home, unit = true) { onChoose(RegistrationKind.UNIT) }
                 if (!hasUnits) FlowHint(Icons.Rounded.Lightbulb,
                     "Ainda não há unidades. Cadastrando a unidade primeiro, o inquilino já tem onde morar.")
             }
@@ -172,24 +172,26 @@ private fun RegistrationChooser(hasUnits: Boolean, onClose: () -> Unit, onChoose
 }
 
 /**
- * A kind of record as a small passbook: a strip of the blue cover that opens its detail page, with
- * the kind's glyph lit on it, beside what the registration asks and how long it is.
+ * A kind of record as a small passbook: a strip of the cover that opens its detail page (blue for a
+ * person, steel for a [unit]), with the kind's glyph lit on it, beside what the registration asks
+ * and how long it is.
  */
 @Composable
-private fun KindCard(title: String, description: String, length: String, glyph: ImageVector, onClick: () -> Unit) {
+private fun KindCard(title: String, description: String, length: String, glyph: ImageVector, unit: Boolean, onClick: () -> Unit) {
     val nani = NaniTheme.colors
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(AppSize.sheetRadius)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .98f else 1f, AppMotion.PressScale, label = "kind press")
-    val lift = if (nani.isDark) Modifier else Modifier.shadow(10.dp, shape, ambientColor = nani.coverEnd.copy(alpha = .12f),
-        spotColor = nani.coverEnd.copy(alpha = .22f))
+    val (lit, deep) = if (unit) nani.unitCoverStart to nani.unitCoverEnd else nani.coverStart to nani.coverEnd
+    val lift = if (nani.isDark) Modifier else Modifier.shadow(10.dp, shape, ambientColor = deep.copy(alpha = .12f),
+        spotColor = deep.copy(alpha = .22f))
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale }.then(lift),
         shape = shape, color = colors.surface, interactionSource = interaction) {
         Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 128.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(96.dp).fillMaxHeight().drawBehind {
-                drawRect(Brush.linearGradient(listOf(nani.coverStart, nani.coverEnd), start = Offset(size.width, 0f),
+                drawRect(Brush.linearGradient(listOf(lit, deep), start = Offset(size.width, 0f),
                     end = Offset(0f, size.height)))
                 drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = .14f), Color.Transparent),
                     center = Offset(size.width, 0f), radius = size.height))

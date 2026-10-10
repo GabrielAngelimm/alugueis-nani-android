@@ -854,7 +854,7 @@ class VisualFlowTest {
 
         editor(hasText("Nubank") and hasClickAction()).performClick()
         // A name typed but not added still counts when the step is left.
-        editorField("Novo apelido").performScrollTo().performTextInput("Helena Pix")
+        editorField("Outro nome no extrato").performScrollTo().performTextInput("Helena Pix")
         press("Revisar")
 
         editorText("Confira o cadastro").assertIsDisplayed()

@@ -133,6 +133,20 @@ private fun UnitType.thisOne(): Pair<String, String> = when (this) {
     UnitType.OTHER -> "esta unidade" to "nesta unidade"
 }
 
+/** The kinds in the order they are usually let: homes first, then whole buildings and shops. */
+private val TypeOrder = listOf(UnitType.HOUSE, UnitType.APARTMENT, UnitType.KITNET, UnitType.BUILDING,
+    UnitType.COMMERCIAL_ROOM, UnitType.OTHER)
+
+/** What each kind covers, in a line under its name, so the choice is made without guessing. */
+private fun UnitType.hint(): String = when (this) {
+    UnitType.HOUSE -> "Com entrada própria"
+    UnitType.APARTMENT -> "Em prédio ou condomínio"
+    UnitType.KITNET -> "Compacta, de um só cômodo"
+    UnitType.BUILDING -> "Várias unidades num só endereço"
+    UnitType.COMMERCIAL_ROOM -> "Loja, escritório ou consultório"
+    UnitType.OTHER -> "Quarto, vaga, galpão e outros"
+}
+
 private val statusNotes = mapOf(
     OperationalStatus.ACTIVE to "Recebendo inquilinos",
     OperationalStatus.INACTIVE to "Fora de uso por enquanto",
@@ -186,13 +200,13 @@ internal fun UnitRegistration(
     ) { index ->
         val error = { field: UnitField -> flow.shown[field] }
         when (UnitStep.entries[index]) {
-            UnitStep.TYPE -> StepPage("Tipo", "Que tipo de imóvel é?",
-                "O ícone ajuda a reconhecer a unidade nas listas e na página dela.") {
-                GlyphChoices(UnitType.entries, draft.type, { it.displayName() }, { it.glyph() }) { type ->
+            UnitStep.TYPE -> StepPage("Que tipo de imóvel é?",
+                "O tipo dá o ícone da unidade, que aparece nas listas e na página dela.") {
+                TypeCards(TypeOrder, draft.type, { it.displayName() }, { it.hint() }, { it.glyph() }) { type ->
                     flow.edit(null) { copy(type = type) }
                 }
             }
-            UnitStep.IDENTITY -> StepPage("Nome e endereço", "Como se chama $thisOne e onde fica?",
+            UnitStep.IDENTITY -> StepPage("Como se chama $thisOne e onde fica?",
                 "O nome aparece nas listas e nos filtros; o endereço, na página da unidade.") {
                 val name = requesters.getValue(UnitField.NAME)
                 LaunchedEffect(Unit) { if (flow.draft.name.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { name.requestFocus() } } }
@@ -208,7 +222,7 @@ internal fun UnitRegistration(
                     isError = error(UnitField.LOCATION) != null, errorMessage = error(UnitField.LOCATION),
                     focusRequester = requesters.getValue(UnitField.LOCATION))
             }
-            UnitStep.CAPACITY -> StepPage("Capacidade", "Quanto cabe $inThisOne?",
+            UnitStep.CAPACITY -> StepPage("Quanto cabe $inThisOne?",
                 "A capacidade define a ocupação mostrada na lista, como 2 de 4.") {
                 Column {
                     ControlLabel("Contar por")
@@ -219,7 +233,7 @@ internal fun UnitRegistration(
                     unit = draft.capacityKind.noun(draft.capacityCount), error = error(UnitField.CAPACITY),
                     focusRequester = requesters.getValue(UnitField.CAPACITY), onDone = { focusManager.clearFocus() })
             }
-            UnitStep.DETAILS -> StepPage("Detalhes", "Mais algum detalhe?",
+            UnitStep.DETAILS -> StepPage("Mais algum detalhe?",
                 "Tudo aqui é opcional. A situação diz se a unidade está recebendo inquilinos.", optional = true) {
                 Column {
                     ControlLabel("Situação")
@@ -252,7 +266,7 @@ private fun AnimatedVisibilityScope.UnitReview(flow: UnitFlowState) {
     val fee = draft.fee.takeIf { it.isNotBlank() && validMoney(it, allowZero = true) }
         ?.let { CurrencyUtils.format(it.replace(',', '.').toDouble()) }
     val capacity = draft.capacityCount.takeIf { it > 0 }?.let { "$it ${draft.capacityKind.noun(it)}" }
-    ReviewPage("Revisão", "Confira a unidade", "Toque em uma resposta para corrigir. Nada é salvo antes de você confirmar.",
+    ReviewPage("Confira a unidade", "Toque em uma resposta para corrigir. Nada é salvo antes de você confirmar.",
         preview = {
             NaniDetailHero(
                 title = draft.name.trim().ifBlank { "Sem nome" },

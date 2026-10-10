@@ -11,9 +11,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,8 +24,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -50,13 +55,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -68,10 +81,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.design.LedgerRule
-import com.rentalvalidator.app.presentation.design.UnitTile
 import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
@@ -139,22 +152,29 @@ private fun DayCell(day: Int, selected: Boolean, onClick: () -> Unit, modifier: 
     }
 }
 
-/** A grid of large choices with a glyph each, such as the kinds of property. Two or three to a row. */
+/**
+ * The kinds of property as cards, two to a row (three on a wide screen): each with its mark, its
+ * name and a line on what it covers. The chosen card turns into a small unit cover, the same steel
+ * blue as the page the unit will open, so the answer already looks like what it makes.
+ */
 @Composable
-internal fun <T> GlyphChoices(
+internal fun <T> TypeCards(
     options: List<T>,
     selected: T,
     label: (T) -> String,
+    detail: (T) -> String,
     glyph: (T) -> ImageVector,
     onSelect: (T) -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val perRow = if (maxWidth < 330.dp) 2 else 3
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        val perRow = if (maxWidth < 560.dp) 2 else 3
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             options.chunked(perRow).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Cards in a row share one height, so a two-line note never leaves a neighbour short.
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { option ->
-                        GlyphChoice(label(option), glyph(option), option == selected, { onSelect(option) }, Modifier.weight(1f))
+                        TypeCard(label(option), detail(option), glyph(option), option == selected, { onSelect(option) },
+                            Modifier.weight(1f).fillMaxHeight())
                     }
                     repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -164,29 +184,61 @@ internal fun <T> GlyphChoices(
 }
 
 @Composable
-private fun GlyphChoice(label: String, glyph: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun TypeCard(label: String, detail: String, glyph: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
-    val fill by animateColorAsState(if (selected) colors.primaryContainer.copy(alpha = .55f) else colors.surface,
-        tween(AppMotion.StateDuration), label = "glyph fill")
-    val stroke by animateColorAsState(if (selected) colors.primary else colors.outlineVariant,
-        tween(AppMotion.StateDuration), label = "glyph stroke")
-    val lift by animateFloatAsState(if (selected) 1.06f else 1f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
-        label = "glyph lift")
-    Box(modifier.heightIn(min = 112.dp).clip(RoundedCornerShape(AppSize.sheetRadius)).background(fill)
-        .border(BorderStroke(if (selected) 1.5.dp else 1.dp, stroke), RoundedCornerShape(AppSize.sheetRadius))
-        .selectable(selected, role = Role.RadioButton, onClick = onClick)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            UnitTile(glyph, Modifier.scale(lift), size = 48.dp)
-            Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
-                color = if (selected) colors.onSurface else colors.onSurfaceVariant)
-        }
-        androidx.compose.animation.AnimatedVisibility(selected, Modifier.align(Alignment.TopEnd).padding(8.dp),
-            enter = scaleIn(spring(dampingRatio = .6f)) + fadeIn(), exit = scaleOut() + fadeOut()) {
-            Box(Modifier.size(22.dp).background(NaniTheme.colors.action, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Check, null, Modifier.size(14.dp), tint = NaniTheme.colors.onAction)
+    val nani = NaniTheme.colors
+    val shape = RoundedCornerShape(AppSize.sheetRadius)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) .97f else 1f, AppMotion.PressScale, label = "type press")
+    val cover by animateFloatAsState(if (selected) 1f else 0f, tween(AppMotion.StateDuration, easing = AppMotion.Settle),
+        label = "type cover")
+    val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
+        label = "type badge")
+    // Only the chosen card stands off the page, and only by day; at night the cover's own light is enough.
+    val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(10.dp * cover, shape,
+        ambientColor = nani.unitCoverEnd.copy(alpha = .14f), spotColor = nani.unitCoverEnd.copy(alpha = .3f))
+    Column(modifier
+        .graphicsLayer { scaleX = press; scaleY = press }
+        .then(lift)
+        .clip(shape)
+        .background(colors.surface)
+        .drawBehind {
+            if (cover > 0f) {
+                drawRect(Brush.linearGradient(listOf(nani.unitCoverStart, nani.unitCoverEnd), start = Offset(size.width, 0f),
+                    end = Offset(0f, size.height)), alpha = cover)
+                drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = .14f), Color.Transparent),
+                    center = Offset(size.width, 0f), radius = size.height), alpha = cover)
             }
         }
+        .border(1.dp, colors.outlineVariant.copy(alpha = 1f - cover), shape)
+        .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
+        .heightIn(min = 132.dp)
+        .padding(16.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            TypeMark(glyph, cover)
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.size(24.dp).graphicsLayer { alpha = badge.coerceIn(0f, 1f); scaleX = badge; scaleY = badge }
+                .background(nani.onPlaque, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = nani.unitCoverEnd)
+            }
+        }
+        Spacer(Modifier.weight(1f).heightIn(min = 14.dp))
+        Text(label, style = MaterialTheme.typography.titleSmall, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 1,
+            overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(3.dp))
+        Text(detail, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            color = lerp(colors.onSurfaceVariant, nani.onPlaque.copy(alpha = .8f), cover))
+    }
+}
+
+/** A type's mark, built like the unit's mark on its cover: the icon on a steel disc, ringed in light once chosen. */
+@Composable
+private fun TypeMark(glyph: ImageVector, cover: Float) {
+    val (fill, ink) = NaniTheme.colors.unitMark
+    Box(Modifier.size(48.dp).background(NaniTheme.colors.onPlaque.copy(alpha = .18f * cover), CircleShape).padding(3.dp)
+        .background(fill, CircleShape), contentAlignment = Alignment.Center) {
+        Icon(glyph, null, Modifier.size(22.dp), tint = ink)
     }
 }
 

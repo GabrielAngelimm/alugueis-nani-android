@@ -65,7 +65,7 @@ Inquilino e unidade abrem com um único cartão. O topo é uma capa azul, como a
 | `PrimaryButton`, `SecondaryButton`, `TonalButton`, `DangerButton` | `components/Buttons.kt` | Hierarquia de ações |
 | `NaniTextField`, `NaniDropdownField` | `components/Fields.kt` | Campos: caixa preenchida apoiada na pauta |
 | `AppNavigation`, `AppNavigationRail` | `components/AppNavigation.kt` | Cápsula flutuante com lente deslizante; trilho lateral em telas largas |
-| `GuidedFlow`, `StepPage`, `ReviewPage`, `FlowFooter`, `DueDayPicker`, `GlyphChoices`, `CountStepper`, `ReviewLine` | `ui/registration/` | Cadastro guiado: trilha de etapas, perguntas, escolhas visuais e revisão; as regras de cada etapa ficam em `RegistrationDrafts.kt` e são testadas em `RegistrationDraftsTest` |
+| `GuidedFlow`, `StepPage`, `ReviewPage`, `FlowFooter`, `DueDayPicker`, `TypeCards`, `CountStepper`, `ReviewLine` | `ui/registration/` | Cadastro guiado: trilha de etapas, perguntas, escolhas visuais e revisão; as regras de cada etapa ficam em `RegistrationDrafts.kt` e são testadas em `RegistrationDraftsTest` |
 
 Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e diálogos 28dp. O espaçamento usa múltiplos de 4dp, margem lateral de 20dp e 32dp entre seções.
 
@@ -85,9 +85,9 @@ Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e d
 
 ## Cadastro guiado
 
-O "+" de Locações abre uma escolha entre inquilino e unidade, cada um num cartão com uma faixa da capa azul. O cadastro segue uma pergunta por página, escrita como conversa ("Quanto e quando Marina paga?"), com perguntas próximas agrupadas: valor e vencimento, telefone e CPF, nome e endereço. Inquilino tem seis etapas (nome, unidade, aluguel, contato, extrato e revisão); unidade tem cinco (tipo, nome e endereço, capacidade, detalhes e revisão). Contato, extrato e detalhes são opcionais e marcados assim.
+O "+" de Locações abre uma escolha entre inquilino e unidade, cada um num cartão com uma faixa da sua capa: azul para a pessoa, aço para o imóvel. O cadastro segue uma pergunta por página, escrita como conversa ("Quanto e quando Marina paga?"), com perguntas próximas agrupadas: valor e vencimento, telefone e CPF, nome e endereço. Inquilino tem seis etapas (nome, unidade, aluguel, contato, extrato e revisão); unidade tem cinco (tipo, nome e endereço, capacidade, detalhes e revisão). Contato, extrato e detalhes são opcionais e marcados assim. O tipo de imóvel é escolhido em cartões com o ícone num disco de aço, o nome e uma linha do que o tipo abrange; o escolhido vira uma pequena capa de unidade.
 
-No topo, uma barra fina mostra o avanço e uma trilha de abas lista as etapas: as já respondidas trazem a resposta e podem ser reabertas, a atual fica em tinta e as próximas esperam em lápis. Avançar só valida a etapa da tela, com o erro junto ao campo e o foco nele; Voltar, inclusive o do sistema, recua uma pergunta sem perder nada. A revisão repete a capa da página de detalhe com o que será salvo e lista cada resposta, que abre a etapa para correção e volta direto à revisão. Fechar com respostas pede confirmação. Erros ao salvar aparecem na própria revisão, e a confirmação de uma unidade nova oferece cadastrar o primeiro inquilino nela.
+No topo, uma barra em segmentos, um por etapa, mostra o avanço, e uma trilha lista as etapas só pelo nome: as já respondidas levam um visto e podem ser reabertas, a atual fica numa pílula de tinta e as próximas esperam em lápis. A resposta não aparece na trilha (fica na revisão), e a trilha some em degradê na borda por onde continua. Avançar só valida a etapa da tela, com o erro junto ao campo e o foco nele; Voltar, inclusive o do sistema, recua uma pergunta sem perder nada. A revisão repete a capa da página de detalhe com o que será salvo e lista cada resposta, que abre a etapa para correção e volta direto à revisão. Fechar com respostas pede confirmação. Erros ao salvar aparecem na própria revisão, e a confirmação de uma unidade nova oferece cadastrar o primeiro inquilino nela.
 
 Campos, validações e o registro gravado são os mesmos dos formulários completos, que continuam sendo usados para editar.
 

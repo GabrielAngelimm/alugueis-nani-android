@@ -5,10 +5,7 @@ import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,7 +13,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +25,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,7 +35,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -65,6 +62,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -75,6 +80,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rentalvalidator.app.presentation.components.AppMotion
@@ -86,9 +93,10 @@ import com.rentalvalidator.app.presentation.theme.NaniTheme
 
 /*
  * A guided registration asks one thing at a time. Above the question, a trail of steps says
- * where the person is: what was answered (with the answer itself), the step on screen and what
- * is left. Moving forward checks the step being left; moving back never checks anything and
- * never forgets anything, so answers survive every trip across the trail.
+ * where the person is: the steps behind (checked, and open to a tap), the step on screen and
+ * what is left. The trail names steps only; answers are read on the review. Moving forward
+ * checks the step being left; moving back never checks anything and never forgets anything, so
+ * answers survive every trip across the trail.
  */
 
 /** How one step reads in the trail. */
@@ -96,7 +104,7 @@ import com.rentalvalidator.app.presentation.theme.NaniTheme
 internal data class TrailStep(
     val title: String,
     val optional: Boolean = false,
-    /** The answer as the trail shows it once the step is behind the person; null shows the title. */
+    /** The answer, read out to assistive technology once the step is behind the person. */
     val answer: String? = null,
     /** True when the review found something to fix in this step. */
     val hasError: Boolean = false
@@ -131,7 +139,7 @@ internal fun GuidedFlow(
     content: @Composable AnimatedContentScope.(step: Int) -> Unit
 ) {
     Column(Modifier.fillMaxSize().imePadding()) {
-        FlowTopBar(title, subtitle, "Etapa ${stepper.current + 1} de ${steps.size}", onClose)
+        FlowTopBar(title, subtitle, null, onClose)
         FlowProgress(stepper.current, stepper.furthest, steps.size)
         StepTrail(steps, stepper.current, stepper.furthest, onTrail)
         AnimatedContent(stepper.current, Modifier.weight(1f).fillMaxWidth(), label = "guided step", transitionSpec = {
@@ -160,29 +168,38 @@ internal fun FlowTopBar(title: String, subtitle: String?, counter: String?, onCl
     }
 }
 
-/** A thin rule that fills as the person moves on; the reached part stays faintly inked when they step back. */
+/**
+ * One segment per step, so the length of the registration is read at a glance. Segments up to the
+ * step on screen fill with ink as it is reached; ones the person has seen beyond it, after stepping
+ * back, stay faintly inked.
+ */
 @Composable
 private fun FlowProgress(current: Int, furthest: Int, count: Int) {
-    val spring = spring<Float>(dampingRatio = .9f, stiffness = Spring.StiffnessLow)
-    val now by animateFloatAsState((current + 1f) / count, spring, label = "progress now")
-    val reached by animateFloatAsState((furthest + 1f) / count, spring, label = "progress reached")
-    val ink = NaniTheme.colors.action
-    Box(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).height(4.dp).clip(CircleShape)
-        .background(NaniTheme.colors.track).clearAndSetSemantics { }) {
-        Box(Modifier.fillMaxWidth(reached).height(4.dp).clip(CircleShape).background(ink.copy(alpha = .28f)))
-        Box(Modifier.fillMaxWidth(now).height(4.dp).clip(CircleShape).background(ink))
+    val nani = NaniTheme.colors
+    Row(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).height(4.dp).clearAndSetSemantics { },
+        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        repeat(count) { index ->
+            val ink by animateFloatAsState(if (index <= current) 1f else 0f,
+                tween(AppMotion.PageDuration, easing = AppMotion.Settle), label = "segment ink")
+            val ground by animateColorAsState(if (index <= furthest) nani.action.copy(alpha = .26f) else nani.track,
+                tween(AppMotion.StateDuration), label = "segment ground")
+            Box(Modifier.weight(1f).fillMaxHeight().clip(CircleShape).background(ground)) {
+                Box(Modifier.fillMaxHeight().fillMaxWidth(ink).clip(CircleShape).background(nani.action))
+            }
+        }
     }
 }
 
 /**
- * The steps as a row of tabs on a ledger's edge. Steps behind the person show their answer and
- * can be opened again; the current one is inked; the ones ahead wait in pencil.
+ * The steps by name, as the tabs on a ledger's edge. Steps behind the person carry a check and
+ * open again on a tap; the step on screen sits on a soft tab of its own; the ones ahead wait in
+ * pencil, numbered.
  */
 @Composable
 private fun StepTrail(steps: List<TrailStep>, current: Int, furthest: Int, onStep: (Int) -> Unit) {
     val list = rememberLazyListState()
-    // Keep the step before the current one in view, so the last answer is always readable, unless
-    // a long answer would push the current step past the edge: then the current step wins.
+    // Keep the step before the current one in view, so the trail shows where the person came
+    // from, unless that pushes the current step past the edge: then the current step wins.
     LaunchedEffect(current) {
         list.animateScrollToItem((current - 1).coerceAtLeast(0))
         val info = list.layoutInfo
@@ -191,32 +208,45 @@ private fun StepTrail(steps: List<TrailStep>, current: Int, furthest: Int, onSte
         else (shown.offset + shown.size - (info.viewportEndOffset - info.afterContentPadding))
             .takeIf { it > 0 }?.let { list.animateScrollBy(it.toFloat()) }
     }
-    LazyRow(Modifier.fillMaxWidth(), state = list, contentPadding = PaddingValues(horizontal = AppSpace.page, vertical = 14.dp),
+    LazyRow(Modifier.fillMaxWidth().fadingEdges(list), state = list,
+        contentPadding = PaddingValues(start = AppSpace.page - 8.dp, end = AppSpace.page - 8.dp, top = 10.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically) {
         itemsIndexed(steps) { index, step ->
+            // The rule to the next step travels with this one, so a step scrolled to the edge starts on its own tab.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (index > 0) Box(Modifier.width(14.dp).height(1.dp).background(
-                    if (index <= furthest) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant))
-                TrailChip(index, steps.size, step, current = index == current, reached = index <= furthest,
+                TrailTab(index, steps.size, step, current = index == current, reached = index <= furthest,
                     onClick = { onStep(index) })
+                if (index < steps.lastIndex) Box(Modifier.padding(horizontal = 2.dp).width(10.dp).height(1.dp).background(
+                    if (index < furthest) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant))
             }
         }
     }
 }
 
+/** The trail fades out at an edge it continues past, instead of cutting a step in half there. */
+private fun Modifier.fadingEdges(list: LazyListState, width: Dp = 16.dp): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithContent {
+        drawContent()
+        val edge = width.toPx()
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val (left, right) = if (rtl) list.canScrollForward to list.canScrollBackward else list.canScrollBackward to list.canScrollForward
+        if (left) drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.Black), endX = edge),
+            size = Size(edge, size.height), blendMode = BlendMode.DstIn)
+        if (right) drawRect(Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - edge,
+            endX = size.width), topLeft = Offset(size.width - edge, 0f), size = Size(edge, size.height), blendMode = BlendMode.DstIn)
+    }
+
 @Composable
-private fun TrailChip(index: Int, count: Int, step: TrailStep, current: Boolean, reached: Boolean, onClick: () -> Unit) {
+private fun TrailTab(index: Int, count: Int, step: TrailStep, current: Boolean, reached: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val nani = NaniTheme.colors
     val done = reached && !current
-    val fill by animateColorAsState(if (current) colors.primaryContainer else if (done) colors.surface else colors.background,
+    val fill by animateColorAsState(if (current) colors.primaryContainer else colors.primaryContainer.copy(alpha = 0f),
         tween(AppMotion.StateDuration), label = "trail fill")
-    val stroke by animateColorAsState(when {
-        current -> colors.primary
-        done && step.hasError -> nani.overdue.ink
-        else -> colors.outlineVariant
-    }, tween(AppMotion.StateDuration), label = "trail stroke")
-    val text = if (done) step.answer ?: step.title else step.title
+    val ink by animateColorAsState(when {
+        current -> colors.onPrimaryContainer
+        done -> colors.onSurface
+        else -> colors.onSurfaceVariant.copy(alpha = .78f)
+    }, tween(AppMotion.StateDuration), label = "trail ink")
     val state = when {
         current -> "etapa atual"
         step.hasError -> "precisa de correção"
@@ -225,24 +255,18 @@ private fun TrailChip(index: Int, count: Int, step: TrailStep, current: Boolean,
     }
     val spoken = "Etapa ${index + 1} de $count, ${step.title}" + (if (done && step.answer != null) ": ${step.answer}" else "") +
         if (step.optional) ", opcional" else ""
-    Row(Modifier.heightIn(min = 36.dp).clip(CircleShape).background(fill).border(BorderStroke(1.dp, stroke), CircleShape)
+    Row(Modifier.heightIn(min = 36.dp).clip(CircleShape).background(fill)
         .then(if (done) Modifier.clickable(role = Role.Button, onClickLabel = "Voltar a esta etapa", onClick = onClick) else Modifier)
         // The click stays outside the cleared semantics, so a reached step is still announced as a button.
         .clearAndSetSemantics {
             contentDescription = spoken
             stateDescription = state
         }
-        .padding(start = 5.dp, end = 12.dp, top = 5.dp, bottom = 5.dp)
-        .animateContentSize(tween(AppMotion.LayoutDuration, easing = AppMotion.Settle)),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        .padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         TrailDisc(index, current, done, step.hasError)
-        Text(text, Modifier.widthIn(max = 168.dp), style = MaterialTheme.typography.labelLarge.copy(
-            fontWeight = if (current) FontWeight.Bold else FontWeight.SemiBold),
-            color = when {
-                current -> colors.onPrimaryContainer
-                done -> colors.onSurface
-                else -> colors.onSurfaceVariant
-            }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(step.title, style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = if (current) FontWeight.Bold else FontWeight.Medium), color = ink, maxLines = 1)
     }
 }
 
@@ -257,32 +281,32 @@ private fun TrailDisc(index: Int, current: Boolean, done: Boolean, error: Boolea
         done -> nani.paid.fill to nani.paid.ink
         else -> colors.background to colors.onSurfaceVariant
     }
-    Box(Modifier.size(26.dp).clip(CircleShape).background(fill)
+    Box(Modifier.size(22.dp).clip(CircleShape).background(fill)
         .then(if (!current && !done) Modifier.border(1.dp, colors.outlineVariant, CircleShape) else Modifier),
         contentAlignment = Alignment.Center) {
         when {
-            done && error -> Icon(Icons.Rounded.PriorityHigh, null, Modifier.size(16.dp), tint = ink)
-            done -> Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = ink)
-            else -> Text("${index + 1}", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = ink)
+            done && error -> Icon(Icons.Rounded.PriorityHigh, null, Modifier.size(14.dp), tint = ink)
+            done -> Icon(Icons.Rounded.Check, null, Modifier.size(14.dp), tint = ink)
+            else -> Text("${index + 1}", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = ink)
         }
     }
 }
 
 /**
- * One question. A small kicker names the step, the question is written in the ledger's hand, a
- * line explains why it is asked, and the fields follow a beat after the page lands.
+ * One question. The trail already names the step, so the page opens on the question itself,
+ * written in the ledger's hand, with a line on why it is asked; the fields follow a beat after
+ * the page lands.
  */
 @Composable
 internal fun AnimatedVisibilityScope.StepPage(
-    kicker: String,
     question: String,
     helper: String?,
     optional: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-        .padding(horizontal = AppSpace.page).padding(top = 12.dp, bottom = 32.dp)) {
-        StepHeading(kicker, question, helper, optional)
+        .padding(horizontal = AppSpace.page).padding(top = 20.dp, bottom = 32.dp)) {
+        StepHeading(null, question, helper, optional)
         Column(Modifier.fillMaxWidth().landing(this@StepPage), verticalArrangement = Arrangement.spacedBy(22.dp), content = content)
     }
 }
@@ -290,14 +314,13 @@ internal fun AnimatedVisibilityScope.StepPage(
 /** The last page: the heading, a preview of the record as it will look, then the answers to confirm. */
 @Composable
 internal fun AnimatedVisibilityScope.ReviewPage(
-    kicker: String,
     question: String,
     helper: String,
     preview: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 12.dp, bottom = 32.dp)) {
-        Column(Modifier.padding(horizontal = AppSpace.page)) { StepHeading(kicker, question, helper, optional = false) }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 20.dp, bottom = 32.dp)) {
+        Column(Modifier.padding(horizontal = AppSpace.page)) { StepHeading(null, question, helper, optional = false) }
         // The preview brings its own gutter, as it does at the top of a detail page.
         Box(Modifier.landing(this@ReviewPage)) { preview() }
         Column(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).landing(this@ReviewPage, delay = 150),
@@ -305,16 +328,19 @@ internal fun AnimatedVisibilityScope.ReviewPage(
     }
 }
 
+/** A small [kicker] (where there is no trail to name the page), the "Opcional" tag, the question and why it is asked. */
 @Composable
-internal fun StepHeading(kicker: String, question: String, helper: String?, optional: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(kicker.uppercase(), style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
-            color = MaterialTheme.colorScheme.primary)
-        if (optional) Text("Opcional", Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 10.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+internal fun StepHeading(kicker: String?, question: String, helper: String?, optional: Boolean) {
+    if (kicker != null || optional) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (kicker != null) Text(kicker.uppercase(), style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
+                color = MaterialTheme.colorScheme.primary)
+            if (optional) Text("Opcional", Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 10.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(12.dp))
     }
-    Spacer(Modifier.height(10.dp))
     Text(question, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
     if (helper != null) {
         Spacer(Modifier.height(8.dp))

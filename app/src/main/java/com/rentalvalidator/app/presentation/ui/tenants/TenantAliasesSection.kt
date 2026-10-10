@@ -33,10 +33,12 @@ internal fun TenantAliasesSection(aliasInput: String, aliases: List<String>, onI
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TenantAliasesEditor(aliasInput: String, aliases: List<String>, onInput: (String) -> Unit,
-    onAdd: () -> Unit, onRemove: (String) -> Unit, modifier: Modifier = Modifier) {
+    onAdd: () -> Unit, onRemove: (String) -> Unit, modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.new_alias),
+    emptyNote: String = "Nenhum apelido. O nome completo já é usado na conferência.") {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
-            NaniTextField(aliasInput, onInput, stringResource(R.string.new_alias), Modifier.weight(1f))
+            NaniTextField(aliasInput, onInput, label, Modifier.weight(1f))
             FilledIconButton(onClick = onAdd, enabled = aliasInput.isNotBlank(), modifier = Modifier.size(56.dp),
                 shape = RoundedCornerShape(AppSize.controlRadius),
                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = NaniTheme.colors.action,
@@ -45,7 +47,7 @@ internal fun TenantAliasesEditor(aliasInput: String, aliases: List<String>, onIn
             }
         }
         if (aliases.isEmpty()) {
-            Text("Nenhum apelido. O nome completo já é usado na conferência.", style = MaterialTheme.typography.bodySmall,
+            Text(emptyNote, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             aliases.forEach { alias ->
