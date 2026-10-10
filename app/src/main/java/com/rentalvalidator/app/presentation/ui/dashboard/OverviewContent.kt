@@ -130,7 +130,8 @@ private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPaymen
     val stats = dueStats(counts)
     val percent = percentOf(counts.paid, counts.total)
     LedgerSheet(Modifier.padding(horizontal = AppSpace.page)) {
-        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
+        // The same 20dp on both sides as the rows below, so the counters sit centered on the sheet.
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Recebido em $month", style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
@@ -144,8 +145,8 @@ private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPaymen
                     segments = ringOf(stats),
                     description = if (counts.total > 0) "${counts.paid} de ${counts.total} aluguéis pagos em $month, " +
                         "${counts.upcoming} a vencer e ${counts.overdue} em atraso" else "Nenhum aluguel previsto",
-                    size = 92.dp, stroke = 10.dp
-                ) { RingLabel(if (counts.total > 0) "$percent%" else "—", 92.dp, caption = "pagos") }
+                    size = 88.dp, stroke = 10.dp
+                ) { RingLabel(if (counts.total > 0) "$percent%" else "—", 88.dp, caption = "pagos") }
             }
             Spacer(Modifier.height(18.dp))
             if (data.tenantCount == 0) {

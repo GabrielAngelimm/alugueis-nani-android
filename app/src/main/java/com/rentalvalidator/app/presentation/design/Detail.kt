@@ -57,7 +57,9 @@ import com.rentalvalidator.app.presentation.theme.AppSpace
 import com.rentalvalidator.app.presentation.theme.NaniSerifText
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
-import kotlin.math.min
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 enum class DetailIdentity { TENANT, UNIT }
 
@@ -131,40 +133,38 @@ private fun HeroTitle(title: String, color: Color) {
     }
 }
 
-/** Deep blue lit from the upper right, engraved with two sets of strands that weave toward the right edge. */
+/** Deep blue lit from the upper right, engraved with fine rings that ripple out from the light. */
 @Composable
 private fun HeroCover(seed: String, content: @Composable RowScope.() -> Unit) {
     val nani = NaniTheme.colors
     val engraving = remember(seed) { engravingOf(seed) }
-    // Strands run past the edges by design; the cover keeps them off the facts below.
+    // Rings run past the edges by design; the cover keeps them off the facts below.
     Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).clipToBounds().drawWithCache {
         val width = size.width
         val height = size.height
-        val step = 4.dp.toPx()
-        fun strand(index: Int, crossing: Boolean) = Path().apply {
-            moveTo(0f, engraving.strandY(index, 0f, width, height, crossing))
-            var x = 0f
-            while (x < width) {
-                x = min(x + step, width)
-                lineTo(x, engraving.strandY(index, x, width, height, crossing))
+        val center = Offset(width * EngravingCenterX, height * EngravingCenterY)
+        // From a little before straight down to a little past straight left: the quarter that covers the cover.
+        val angles = List(141) { (.47f + it * .004f) * PI.toFloat() }
+        val rings = List(EngravingRings) { index ->
+            Path().apply {
+                angles.forEachIndexed { step, angle ->
+                    val radius = engraving.ringRadius(index, angle, width, height)
+                    val x = center.x + radius * cos(angle)
+                    val y = center.y + radius * sin(angle)
+                    if (step == 0) moveTo(x, y) else lineTo(x, y)
+                }
             }
         }
-        val warp = List(EngravingStrands) { strand(it, crossing = false) }
-        val weft = List(EngravingStrands) { strand(it, crossing = true) }
         val ground = Brush.linearGradient(listOf(nani.coverStart, nani.coverEnd), start = Offset(width, 0f), end = Offset(0f, height))
-        val glow = Brush.radialGradient(listOf(Color.White.copy(alpha = .13f), Color.Transparent),
+        val glow = Brush.radialGradient(listOf(Color.White.copy(alpha = .12f), Color.Transparent),
             center = Offset(width * .94f, -height * .15f), radius = height * 1.4f)
-        // The engraving fades in from the middle, so the mark and the start of the name sit on clear blue.
-        fun ink(alpha: Float) = Brush.horizontalGradient(0f to Color.Transparent, .3f to Color.Transparent,
-            1f to nani.onPlaque.copy(alpha = alpha))
-        val warpInk = ink(.22f)
-        val weftInk = ink(.1f)
-        val warpLine = Stroke(1.dp.toPx())
-        val weftLine = Stroke(.75.dp.toPx())
+        // The rings fade out toward the left, so the mark and the start of the name sit on clear blue.
+        val ink = Brush.horizontalGradient(0f to Color.Transparent, .25f to Color.Transparent,
+            .65f to nani.onPlaque.copy(alpha = .14f), 1f to nani.onPlaque.copy(alpha = .14f))
+        val line = Stroke(.75.dp.toPx())
         onDrawBehind {
             drawRect(ground)
-            weft.forEach { drawPath(it, weftInk, style = weftLine) }
-            warp.forEach { drawPath(it, warpInk, style = warpLine) }
+            rings.forEach { drawPath(it, ink, style = line) }
             drawRect(glow)
         }
     }.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
