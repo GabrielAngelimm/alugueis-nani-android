@@ -9,6 +9,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
@@ -800,7 +801,13 @@ class VisualFlowTest {
     private fun editorField(label: String) = editor(hasContentDescription(label) and hasSetTextAction())
     /** Focus moves after the step has settled, so the check waits for it instead of reading it once. */
     private fun awaitFocus(label: String) =
-        compose.waitUntil(5_000) { runCatching { editorField(label).assertIsFocused() }.isSuccess }
+        compose.waitUntil("$label focused", 5_000) { runCatching { editorField(label).assertIsFocused() }.isSuccess }
+    /**
+     * Presses a footer action through its click action. A tap injected right after the keyboard
+     * changes layout (text, phone and number pads differ in height) can land beside the button
+     * while the editor is still resizing above it.
+     */
+    private fun press(action: String) { editorText(action).performSemanticsAction(SemanticsActions.OnClick) }
     private fun awaitEditorText(text: String) =
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(text) and inEditor).fetchSemanticsNodes().isNotEmpty() }
 
@@ -814,41 +821,41 @@ class VisualFlowTest {
         editor(hasText("Inquilino") and hasClickAction()).performClick()
 
         editorText("Qual é o nome do inquilino?").assertIsDisplayed()
-        editorText("Avançar").performClick()
+        press("Avançar")
         editorText("Informe o nome").assertExists()
         awaitFocus("Nome completo")
         editorField("Nome completo").performTextInput("Helena Duarte")
-        editorText("Avançar").performClick()
+        press("Avançar")
 
         editorText("Em qual unidade Helena mora?").assertIsDisplayed()
         editor(hasText("Jardim das Oliveiras") and hasClickAction()).performClick()
         editor(hasText("Jardim das Oliveiras") and hasClickAction()).assertIsSelected()
-        editorText("Avançar").performClick()
+        press("Avançar")
 
-        editorText("Avançar").performClick()
+        press("Avançar")
         editorText("Informe um valor válido").assertExists()
         editorText("Escolha o dia de vencimento, de 1 a 31").assertExists()
         awaitFocus("Aluguel mensal")
         shot("light-registration-rent-errors")
         editorField("Aluguel mensal").performTextInput("1250,50")
         editor(hasContentDescription("Dia 10")).performScrollTo().performClick().assertIsSelected()
-        editorText("Avançar").performClick()
+        press("Avançar")
 
         editorField("Telefone").performTextInput("119")
-        editorText("Avançar").performClick()
+        press("Avançar")
         awaitFocus("Telefone")
         editorField("Telefone").performTextReplacement("11987654321")
         editorField("CPF").performScrollTo().performTextInput("11111111111")
-        editorText("Avançar").performClick()
+        press("Avançar")
         awaitFocus("CPF")
         editorText("Informe um CPF válido com 11 dígitos ou deixe em branco").assertExists()
         editorField("CPF").performTextReplacement("52998224725")
-        editorText("Avançar").performClick()
+        press("Avançar")
 
         editor(hasText("Nubank") and hasClickAction()).performClick()
         // A name typed but not added still counts when the step is left.
         editorField("Novo apelido").performScrollTo().performTextInput("Helena Pix")
-        editorText("Revisar").performClick()
+        press("Revisar")
 
         editorText("Confira o cadastro").assertIsDisplayed()
         editorText("Outros nomes: Helena Pix").assertExists()
@@ -860,14 +867,14 @@ class VisualFlowTest {
         // An answer opened from the review returns to it, and going back keeps every answer.
         editor(hasText("Nome") and hasClickAction()).performClick()
         editorField("Nome completo").assertTextContains("Helena Duarte").performTextReplacement("Helena Duarte Lima")
-        editorText("Revisar").performClick()
+        press("Revisar")
         editor(hasText("Nome") and hasText("Helena Duarte Lima") and hasClickAction()).assertExists()
-        editorText("Voltar").performClick()
+        press("Voltar")
         editorText("Helena Pix").assertExists()
         editor(hasText("Nubank") and hasClickAction()).assertIsSelected()
-        editorText("Revisar").performClick()
+        press("Revisar")
 
-        editorText("Cadastrar inquilino").performClick()
+        press("Cadastrar inquilino")
         compose.waitUntil(10_000) { tenants.tenants.value.size == 4 }
         val saved = tenants.tenants.value.single { it.name == "Helena Duarte Lima" }
         Assert.assertEquals(1250.5, saved.amount, .001)
@@ -890,40 +897,40 @@ class VisualFlowTest {
         editor(hasText("Unidade") and hasClickAction()).performClick()
 
         editor(hasText("Kitnet") and hasClickAction()).performClick().assertIsSelected()
-        editorText("Avançar").performClick()
+        press("Avançar")
 
         editorText("Como se chama esta kitnet e onde fica?").assertIsDisplayed()
-        editorText("Avançar").performClick()
+        press("Avançar")
         editorText("Informe o nome da unidade").assertExists()
         awaitFocus("Nome da unidade")
         editorField("Nome da unidade").performTextInput("Jardim das Oliveiras")
         editorField("Endereço").performTextInput("Rua Horizonte, 120")
-        editorText("Avançar").performClick()
+        press("Avançar")
         awaitEditorText("Já existe uma unidade com este nome.")
         awaitFocus("Nome da unidade")
         editorField("Nome da unidade").performTextReplacement("Residencial Horizonte")
-        editorText("Avançar").performClick()
+        press("Avançar")
 
         awaitEditorText("Quanto cabe nesta kitnet?")
         editor(hasContentDescription("Aumentar capacidade")).performClick()
         editorField("Capacidade").assert(hasText("2"))
         editorField("Capacidade").performTextReplacement("0")
-        editorText("Avançar").performClick()
+        press("Avançar")
         editorText("Mínimo 1").assertExists()
         awaitFocus("Capacidade")
         editorField("Capacidade").performTextReplacement("2")
-        editorText("Avançar").performClick()
+        press("Avançar")
 
         editorField("Condomínio mensal (R$)").performScrollTo().performTextInput("1,234")
-        editorText("Revisar").performClick()
+        press("Revisar")
         awaitFocus("Condomínio mensal (R$)")
         editorText("Informe um valor a partir de zero, com até 2 casas decimais").assertExists()
         editorField("Condomínio mensal (R$)").performTextReplacement("350")
-        editorText("Revisar").performClick()
+        press("Revisar")
 
         editorText("Confira a unidade").assertIsDisplayed()
         shot("light-registration-unit-review")
-        editorText("Cadastrar unidade").performClick()
+        press("Cadastrar unidade")
         compose.waitUntil(10_000) { units.units.value.size == 2 }
         val saved = units.units.value.single { it.name == "Residencial Horizonte" }
         Assert.assertEquals("Rua Horizonte, 120", saved.location)
@@ -939,7 +946,7 @@ class VisualFlowTest {
         compose.onNode(hasText("Adicionar inquilino") and hasClickAction()).performClick()
         editorText("Qual é o nome do inquilino?").assertIsDisplayed()
         editorField("Nome completo").performTextInput("Teste")
-        editorText("Avançar").performClick()
+        press("Avançar")
         editor(hasText("Residencial Horizonte") and hasClickAction()).assertIsSelected()
         editor(hasContentDescription("Fechar")).performClick()
         compose.onNodeWithText("Descartar cadastro?").assertIsDisplayed()
@@ -968,23 +975,23 @@ class VisualFlowTest {
         editorField("CPF (opcional)").performScrollTo().performTextReplacement("11111111111")
         editorField("Aluguel mensal").performScrollTo().performTextReplacement("")
         editorField("Dia de vencimento").performScrollTo().performTextReplacement("")
-        editorText("Salvar").performClick()
+        press("Salvar")
         awaitFocus("Nome completo")
         editorField("Nome completo").performTextInput("Marina Oliveira")
-        editorText("Salvar").performClick()
+        press("Salvar")
         awaitFocus("Telefone")
         editorField("Telefone").performTextReplacement("11987654321")
-        editorText("Salvar").performClick()
+        press("Salvar")
         awaitFocus("CPF (opcional)")
         shot("invalid-cpf-focused")
         editorField("CPF (opcional)").performTextReplacement("52998224725")
-        editorText("Salvar").performClick()
+        press("Salvar")
         awaitFocus("Aluguel mensal")
         editorField("Aluguel mensal").performTextInput("1250,50")
-        editorText("Salvar").performClick()
+        press("Salvar")
         awaitFocus("Dia de vencimento")
         shot("invalid-due-focused")
-        editorText("Cancelar").performClick()
+        press("Cancelar")
         Assert.assertEquals(1250.0, tenants.tenants.value.single { it.id == "visual-0" }.amount, .001)
     }
 
