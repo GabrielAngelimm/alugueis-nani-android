@@ -148,11 +148,13 @@ private fun HeroCover(seed: String, unit: Boolean, content: @Composable RowScope
  * Paints a cover behind what it holds, at any size: passbook blue lit from the upper right and
  * engraved from [seed], with rings for a person or, for a place ([unit]), courses on a shade
  * toward steel. [reveal] fades the whole cover in, for a card that becomes a cover when chosen; it
- * is read while drawing, so the fade never recomposes. The engraving runs past the edges by
- * design, so the cover clips to its bounds; a caller clips it to a shape before.
+ * is read while drawing, so the fade never recomposes. A [quiet] cover keeps only the engraving,
+ * in a faint wash of the cover's color over whatever the card is, for a card that should sit
+ * calmly in the page. The engraving runs past the edges by design, so the cover clips to its
+ * bounds; a caller clips it to a shape before.
  */
 @Composable
-internal fun Modifier.engravedCover(seed: String, unit: Boolean, reveal: () -> Float = { 1f }): Modifier {
+internal fun Modifier.engravedCover(seed: String, unit: Boolean, reveal: () -> Float = { 1f }, quiet: Boolean = false): Modifier {
     val nani = NaniTheme.colors
     val engraving = remember(seed) { engravingOf(seed) }
     return clipToBounds().drawWithCache {
@@ -189,15 +191,19 @@ internal fun Modifier.engravedCover(seed: String, unit: Boolean, reveal: () -> F
         val glow = Brush.radialGradient(listOf(Color.White.copy(alpha = .12f), Color.Transparent),
             center = Offset(width * .94f, -height * .15f), radius = height * 1.4f)
         // The engraving fades out toward the left, so the mark and the start of the name sit on clear blue.
-        val ink = Brush.horizontalGradient(0f to Color.Transparent, EngravingInkFrom to Color.Transparent,
-            .65f to nani.onPlaque.copy(alpha = .14f), 1f to nani.onPlaque.copy(alpha = .14f))
+        val tone = when {
+            !quiet -> nani.onPlaque.copy(alpha = .14f)
+            unit -> nani.unitCoverStart.copy(alpha = if (nani.isDark) .34f else .2f)
+            else -> nani.coverStart.copy(alpha = if (nani.isDark) .34f else .18f)
+        }
+        val ink = Brush.horizontalGradient(0f to Color.Transparent, EngravingInkFrom to Color.Transparent, .65f to tone, 1f to tone)
         val line = Stroke(.75.dp.toPx())
         onDrawBehind {
             val alpha = reveal().coerceIn(0f, 1f)
             if (alpha > 0f) {
-                drawRect(ground, alpha = alpha)
+                if (!quiet) drawRect(ground, alpha = alpha)
                 lines.forEach { drawPath(it, ink, alpha = alpha, style = line) }
-                drawRect(glow, alpha = alpha)
+                if (!quiet) drawRect(glow, alpha = alpha)
             }
         }
     }

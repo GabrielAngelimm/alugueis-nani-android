@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -162,9 +161,9 @@ private fun RegistrationChooser(hasUnits: Boolean, onClose: () -> Unit, onChoose
                 "Uma pergunta por vez. No final, você confere tudo antes de salvar.")
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 KindCard("Inquilino", "A pessoa que aluga: nome, unidade, valor do aluguel, vencimento e contato.",
-                    "6 etapas, com revisão", Icons.Rounded.Person, unit = false) { onChoose(RegistrationKind.TENANT) }
+                    Icons.Rounded.Person, unit = false) { onChoose(RegistrationKind.TENANT) }
                 KindCard("Unidade", "O imóvel: tipo, nome, endereço, capacidade e situação.",
-                    "5 etapas, com revisão", Icons.Rounded.Home, unit = true) { onChoose(RegistrationKind.UNIT) }
+                    Icons.Rounded.Home, unit = true) { onChoose(RegistrationKind.UNIT) }
                 if (!hasUnits) FlowHint(Icons.Rounded.Lightbulb,
                     "Ainda não há unidades. Cadastrando a unidade primeiro, o inquilino já tem onde morar.")
             }
@@ -174,11 +173,10 @@ private fun RegistrationChooser(hasUnits: Boolean, onClose: () -> Unit, onChoose
 
 /**
  * A kind of record as a small passbook: a strip of the cover that opens its detail page (blue for a
- * person, steel for a [unit]), with the kind's glyph lit on it, beside what the registration asks
- * and how long it is.
+ * person, steel for a [unit]), with the kind's glyph lit on it, beside what the registration asks.
  */
 @Composable
-private fun KindCard(title: String, description: String, length: String, glyph: ImageVector, unit: Boolean, onClick: () -> Unit) {
+private fun KindCard(title: String, description: String, glyph: ImageVector, unit: Boolean, onClick: () -> Unit) {
     val nani = NaniTheme.colors
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(AppSize.sheetRadius)
@@ -190,7 +188,7 @@ private fun KindCard(title: String, description: String, length: String, glyph: 
         spotColor = deep.copy(alpha = .22f))
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale }.then(lift),
         shape = shape, color = colors.surface, interactionSource = interaction) {
-        Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 128.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 116.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(96.dp).fillMaxHeight().drawBehind {
                 drawRect(Brush.linearGradient(listOf(lit, deep), start = Offset(size.width, 0f),
                     end = Offset(0f, size.height)))
@@ -206,10 +204,6 @@ private fun KindCard(title: String, description: String, length: String, glyph: 
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, style = MaterialTheme.typography.titleLarge)
                 Text(description, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                Text(length, Modifier.clip(CircleShape).background(colors.surfaceContainerHigh)
-                    .padding(horizontal = 10.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall,
-                    color = colors.onSurfaceVariant)
             }
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.padding(end = 12.dp).size(22.dp),
                 tint = colors.onSurfaceVariant)

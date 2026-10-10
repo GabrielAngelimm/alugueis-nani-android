@@ -72,6 +72,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -80,6 +81,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.design.BankCoin
 import com.rentalvalidator.app.presentation.design.LedgerRule
@@ -131,8 +133,8 @@ internal fun DueDayPicker(selected: Int?, onSelect: (Int) -> Unit, error: String
         }
         when {
             error != null -> ControlMessage(error, isError = true)
-            selected != null -> ControlMessage("Vence todo dia $selected." +
-                if (selected > 28) " Nos meses mais curtos, vence no último dia do mês." else "", isError = false)
+            // The chosen day speaks for itself; only a day some months lack needs a word.
+            selected != null && selected > 28 -> ControlMessage("Nos meses mais curtos, vence no último dia do mês.", isError = false)
         }
     }
 }
@@ -205,8 +207,11 @@ private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, 
         label = "cover chosen")
     val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
         label = "cover badge")
-    // At rest the card is already tinted with the steel it turns into, so choosing it reads as the color filling in.
-    val rest = lerp(colors.surface, nani.unitCoverStart, if (nani.isDark) .16f else .09f)
+    // At rest the card is already tinted with the steel it turns into, so choosing it reads as the color filling in;
+    // the tint deepens a little toward the foot, like light falling on a card from above.
+    val wash = if (nani.isDark) .16f else .07f
+    val rest = Brush.verticalGradient(listOf(lerp(colors.surface, nani.unitCoverStart, wash * .6f),
+        lerp(colors.surface, nani.unitCoverStart, wash * 1.4f)))
     // Only the chosen card stands off the page, and only by day; at night the cover's own light is enough.
     val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(8.dp * cover, shape,
         ambientColor = nani.unitCoverEnd.copy(alpha = .14f), spotColor = nani.unitCoverEnd.copy(alpha = .3f))
@@ -216,17 +221,27 @@ private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, 
         .clip(shape)
         .background(rest)
         .engravedCover(label, unit = true, reveal = { cover })
-        .border(1.dp, nani.unitCoverStart.copy(alpha = (if (nani.isDark) .34f else .2f) * (1f - cover)), shape)
+        .border(1.dp, nani.unitCoverStart.copy(alpha = (if (nani.isDark) .3f else .16f) * (1f - cover)), shape)
         .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
-        .heightIn(min = 64.dp)
         .padding(CoverPadding),
         verticalAlignment = Alignment.CenterVertically) {
         CoverMark(glyph, cover, size = CoverMarkSize, rest = if (nani.isDark) colors.surfaceContainerHighest else colors.surface,
             check = badge)
         Spacer(Modifier.width(CoverGap))
-        Text(label, Modifier.weight(1f), style = labelStyle, color = lerp(colors.onSurface, nani.onPlaque, cover),
-            maxLines = 3, overflow = TextOverflow.Ellipsis)
+        // Room for two lines on every card, so the grid stays even whether a name wraps or not.
+        TwoLineBand(labelStyle, Alignment.CenterStart, Modifier.weight(1f)) {
+            Text(label, style = labelStyle, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 2,
+                overflow = TextOverflow.Ellipsis)
+        }
     }
+}
+
+/** Holds [content] in a band two lines of [style] tall, so cards with short and long names keep one size. */
+@Composable
+private fun TwoLineBand(style: TextStyle, alignment: Alignment, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val line = style.lineHeight.takeIf { it.isSpecified } ?: (style.fontSize * 1.3f)
+    val band = with(LocalDensity.current) { (line * 2).toDp() }
+    Box(modifier.fillMaxWidth().height(band), contentAlignment = alignment) { content() }
 }
 
 private val CoverPadding = 12.dp
@@ -250,7 +265,8 @@ internal fun CoverMark(
     val (fill, ink) = nani.unitMark
     Box(Modifier.size(size)) {
         Box(Modifier.matchParentSize().background(nani.onPlaque.copy(alpha = .18f * cover), CircleShape).padding(3.dp)
-            .background(lerp(rest, fill, cover), CircleShape), contentAlignment = Alignment.Center) {
+            .background(lerp(rest, fill, cover), CircleShape)
+            .border(1.dp, nani.unitCoverStart.copy(alpha = .18f * (1f - cover)), CircleShape), contentAlignment = Alignment.Center) {
             Icon(glyph, null, Modifier.size(size * .48f), tint = ink)
         }
         if (check > 0f) Box(Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp)) {
@@ -325,16 +341,18 @@ private fun BankCard(bank: String, selected: Boolean, onClick: () -> Unit, modif
             .border(1.dp, colors.outlineVariant.copy(alpha = 1f - chosen), shape)
             .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 14.dp),
-            // Coins line up across a row; a name that wraps hangs below its coin instead of pushing it up.
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             // Once chosen the coin turns over to the bank's white seal, in a ring of light.
             Box(Modifier.size(48.dp).background(ink.copy(alpha = .22f * chosen), CircleShape), contentAlignment = Alignment.Center) {
                 if (none) BankCoin(bank, size = 40.dp, none = true, ink = lerp(colors.outline, ink, chosen))
                 else BankCoin(bank, size = 40.dp, turned = chosen)
             }
             Spacer(Modifier.height(8.dp))
-            Text(bank, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
-                overflow = TextOverflow.Ellipsis, color = lerp(colors.onSurface, ink, chosen))
+            // Every name gets room for two lines, so all the cards are the same size whatever the bank is called.
+            TwoLineBand(MaterialTheme.typography.labelLarge, Alignment.Center) {
+                Text(bank, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis, color = lerp(colors.onSurface, ink, chosen))
+            }
         }
         Box(Modifier.align(Alignment.TopEnd).padding(7.dp)) { ChosenBadge(badge, ink, fill, size = 20.dp) }
     }

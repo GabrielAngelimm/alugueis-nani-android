@@ -9,11 +9,14 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -808,6 +811,23 @@ class VisualFlowTest {
      * while the editor is still resizing above it.
      */
     private fun press(action: String) { editorText(action).performSemanticsAction(SemanticsActions.OnClick) }
+    /**
+     * A footer action lies wholly inside the editor window and above the navigation bar and the
+     * keyboard, so it can be seen and tapped. [press] cannot tell: a semantics click reaches a button
+     * the window cuts off.
+     */
+    private fun assertActionOnScreen(action: String) {
+        val node = editorText(action).fetchSemanticsNode()
+        val view = (node.root as ViewRootForTest).view
+        val window = android.graphics.Rect()
+        Assert.assertTrue("The editor window is not visible", view.getGlobalVisibleRect(window))
+        val covered = ViewCompat.getRootWindowInsets(view)
+            ?.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+        val bottom = window.bottom - (covered?.bottom ?: 0)
+        val bounds = node.boundsInWindow
+        Assert.assertTrue("\"$action\" spans $bounds but only $window is visible, down to $bottom (insets $covered)",
+            bounds.top >= window.top && bounds.bottom <= bottom + 1f)
+    }
     private fun awaitEditorText(text: String) =
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(text) and inEditor).fetchSemanticsNodes().isNotEmpty() }
 
@@ -821,6 +841,8 @@ class VisualFlowTest {
         editor(hasText("Inquilino") and hasClickAction()).performClick()
 
         editorText("Qual é o nome do inquilino?").assertIsDisplayed()
+        assertActionOnScreen("Voltar")
+        assertActionOnScreen("Avançar")
         press("Avançar")
         editorText("Informe o nome").assertExists()
         awaitFocus("Nome completo")
@@ -842,6 +864,7 @@ class VisualFlowTest {
         press("Avançar")
 
         editorField("Telefone").performTextInput("119")
+        assertActionOnScreen("Avançar")
         press("Avançar")
         awaitFocus("Telefone")
         editorField("Telefone").performTextReplacement("11987654321")
@@ -859,6 +882,7 @@ class VisualFlowTest {
 
         editorText("Confira o cadastro").assertIsDisplayed()
         editorText("Outros nomes: Helena Pix").assertExists()
+        assertActionOnScreen("Cadastrar inquilino")
         shot("light-registration-tenant-review")
         compose.runOnIdle { dark.value = true }
         shot("dark-registration-tenant-review")
@@ -900,6 +924,7 @@ class VisualFlowTest {
         press("Avançar")
 
         editorText("Como se chama esta kitnet e onde fica?").assertIsDisplayed()
+        assertActionOnScreen("Avançar")
         press("Avançar")
         editorText("Informe o nome da unidade").assertExists()
         awaitFocus("Nome da unidade")

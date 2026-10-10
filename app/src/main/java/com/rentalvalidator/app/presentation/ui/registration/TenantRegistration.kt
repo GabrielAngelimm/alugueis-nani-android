@@ -2,7 +2,6 @@ package com.rentalvalidator.app.presentation.ui.registration
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -50,7 +48,6 @@ import com.rentalvalidator.app.presentation.design.DetailIdentity
 import com.rentalvalidator.app.presentation.design.Monogram
 import com.rentalvalidator.app.presentation.design.NaniDetailHero
 import com.rentalvalidator.app.presentation.theme.NaniSerif
-import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.ui.tenants.CpfVisualTransformation
 import com.rentalvalidator.app.presentation.ui.tenants.PhoneVisualTransformation
 import com.rentalvalidator.app.presentation.ui.tenants.TenantAliasesEditor
@@ -186,49 +183,46 @@ internal fun TenantRegistration(
         when (TenantStep.entries[index]) {
             TenantStep.NAME -> NamePage(flow, requesters.getValue(TenantField.NAME), advance, error(TenantField.NAME))
             TenantStep.UNIT -> UnitPage(flow, who, units)
-            TenantStep.RENT -> StepPage("Quanto e quando $who paga?",
-                "O valor mensal e o dia do mês em que o aluguel vence.") {
+            TenantStep.RENT -> StepPage("Quanto e quando $who paga?") {
                 val amount = requesters.getValue(TenantField.AMOUNT)
                 LaunchedEffect(Unit) { if (flow.draft.amount.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { amount.requestFocus() } } }
                 NaniTextField(draft.amount, { typed -> moneyInput(typed)?.let { flow.edit(TenantField.AMOUNT) { copy(amount = it) } } },
-                    "Aluguel mensal", required = true, helperText = "Exemplo: 1250,00",
+                    "Aluguel mensal", required = true, helperText = "0,00",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     isError = error(TenantField.AMOUNT) != null, errorMessage = error(TenantField.AMOUNT), focusRequester = amount)
                 DueDayPicker(draft.dueDay, { day -> focusManager.clearFocus(); flow.edit(TenantField.DUE_DAY) { copy(dueDay = day) } },
                     error(TenantField.DUE_DAY))
             }
-            TenantStep.CONTACT -> StepPage("Como falar com $who?",
-                "O telefone é usado nas cobranças e nos lembretes pelo WhatsApp. Nome no WhatsApp e CPF podem ficar para depois.") {
+            TenantStep.CONTACT -> StepPage("Como falar com $who?") {
                 val phone = requesters.getValue(TenantField.PHONE)
                 LaunchedEffect(Unit) { if (flow.draft.phone.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { phone.requestFocus() } } }
                 NaniTextField(draft.phone, { flow.edit(TenantField.PHONE) { copy(phone = it.filter(Char::isDigit).take(11)) } }, "Telefone",
-                    required = true, helperText = "DDD e número", visualTransformation = PhoneVisualTransformation(),
+                    required = true, helperText = "(00) 00000-0000", visualTransformation = PhoneVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { runCatching { whatsapp.requestFocus() } }),
                     isError = error(TenantField.PHONE) != null, errorMessage = error(TenantField.PHONE),
                     focusRequester = phone)
                 NaniTextField(draft.whatsappName, { flow.edit(null) { copy(whatsappName = it) } }, "Nome no WhatsApp",
-                    helperText = if (draft.firstName.isBlank()) "Como a pessoa é chamada nas mensagens" else "Se ficar em branco: ${draft.firstName}",
+                    helperText = draft.firstName.ifBlank { null },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { runCatching { requesters.getValue(TenantField.CPF).requestFocus() } }),
                     focusRequester = whatsapp)
-                NaniTextField(draft.cpf, { flow.edit(TenantField.CPF) { copy(cpf = CpfUtils.digits(it)) } }, "CPF", helperText = "11 dígitos",
+                NaniTextField(draft.cpf, { flow.edit(TenantField.CPF) { copy(cpf = CpfUtils.digits(it)) } }, "CPF", helperText = "000.000.000-00",
                     visualTransformation = CpfVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { advance() }),
                     isError = error(TenantField.CPF) != null, errorMessage = error(TenantField.CPF),
                     focusRequester = requesters.getValue(TenantField.CPF))
             }
-            TenantStep.STATEMENT -> StepPage("Como o pagamento chega?",
-                "O banco filtra a conferência do extrato. Outros nomes ajudam a reconhecer transferências feitas por outra pessoa.") {
+            TenantStep.STATEMENT -> StepPage("Como o pagamento chega?") {
                 Column {
                     ControlLabel("Banco")
                     BankChoices(TenantBanks, draft.bank) { bank -> flow.edit(null) { copy(bank = bank) } }
                 }
                 TenantAliasesEditor(flow.aliasInput, draft.aliases, { flow.aliasInput = it }, onAdd = flow::addAlias,
                     onRemove = { alias -> flow.edit(null) { copy(aliases = aliases - alias) } }, label = "Outro nome no extrato",
-                    emptyNote = "Nenhum outro nome. O nome completo já é usado na conferência.")
+                    emptyNote = null)
             }
             TenantStep.REVIEW -> TenantReview(flow, units)
         }
@@ -237,10 +231,10 @@ internal fun TenantRegistration(
 
 @Composable
 private fun AnimatedVisibilityScope.NamePage(flow: TenantFlowState, focus: FocusRequester, advance: () -> Unit, error: String?) {
-    StepPage("Qual é o nome do inquilino?",
-        "Use o nome completo. Ele aparece nas listas e ajuda a reconhecer os pagamentos no extrato.") {
+    StepPage("Qual é o nome do inquilino?") {
         LaunchedEffect(Unit) { if (flow.draft.name.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { focus.requestFocus() } } }
         NaniTextField(flow.draft.name, { flow.edit(TenantField.NAME) { copy(name = it) } }, "Nome completo", required = true,
+            showLabel = false,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { advance() }),
             isError = error != null, errorMessage = error, focusRequester = focus)
@@ -260,14 +254,12 @@ private fun unitChoices(units: List<RentalUnit>, chosen: String): List<String> {
 @Composable
 private fun AnimatedVisibilityScope.UnitPage(flow: TenantFlowState, who: String, units: List<RentalUnit>) {
     val choices = remember(units) { unitChoices(units, flow.start.unit) }
-    StepPage("Em qual unidade $who mora?",
-        "A unidade organiza os inquilinos por endereço e mostra a ocupação de cada imóvel.") {
+    StepPage("Em qual unidade $who mora?") {
         CoverChoices(choices, flow.draft.unit, label = { it }, labelStyle = UnitName,
             glyph = { name -> units.firstOrNull { it.name.equals(name, ignoreCase = true) }?.type?.glyph() ?: UnitGroupGlyph }) { name ->
             flow.edit(null) { copy(unit = name) }
         }
-        if (units.isEmpty()) FlowHint(Icons.Rounded.Info,
-            "Ainda não há unidades cadastradas. O inquilino fica em Geral e pode mudar de unidade depois, na edição do cadastro.")
+        if (units.isEmpty()) FlowHint(Icons.Rounded.Info, "Ainda não há unidades. O inquilino fica em Geral por enquanto.")
     }
 }
 
@@ -290,20 +282,18 @@ private fun TenantPreview(flow: TenantFlowState) {
         .joinToString("\n").ifBlank { null }
     FlowPreview(seed = settled, unit = false, name = draft.name, placeholder = "Nome do inquilino", line = line,
         linePlaceholder = "Unidade, aluguel e vencimento",
-        mark = { cover -> TenantMark(draft.name, settled, draft.bank.takeUnless { it == NoBank }, cover) })
+        mark = { TenantMark(draft.name, settled, draft.bank.takeUnless { it == NoBank }) })
 }
 
 /**
- * The tenant's monogram once there is a name, in a halo of the cover's light; before it, an empty
- * disc drawn in pencil. The [bank] the rent arrives through rides on its corner, like a badge.
+ * The tenant's monogram once there is a name; before it, an empty disc drawn in pencil. The
+ * [bank] the rent arrives through rides on its corner, like a badge.
  */
 @Composable
-private fun TenantMark(name: String, tone: String, bank: String?, cover: Float) {
+private fun TenantMark(name: String, tone: String, bank: String?) {
     val colors = MaterialTheme.colorScheme
-    val nani = NaniTheme.colors
     Box(Modifier.size(48.dp)) {
-        Box(Modifier.matchParentSize().background(nani.onPlaque.copy(alpha = .16f * cover), CircleShape).padding(3.dp),
-            contentAlignment = Alignment.Center) {
+        Box(Modifier.matchParentSize().padding(3.dp), contentAlignment = Alignment.Center) {
             Crossfade(name.isNotBlank(), label = "preview mark") { named ->
                 if (named) Monogram(name, size = 42.dp, tone = tone)
                 else Box(Modifier.size(42.dp).border(1.5.dp, colors.outlineVariant, CircleShape), contentAlignment = Alignment.Center) {
@@ -312,7 +302,7 @@ private fun TenantMark(name: String, tone: String, bank: String?, cover: Float) 
             }
         }
         if (bank != null) BankCoin(bank, Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp)
-            .border(2.dp, lerp(colors.surface, nani.coverEnd, cover), CircleShape), size = 22.dp)
+            .border(2.dp, colors.surface, CircleShape), size = 22.dp)
     }
 }
 
@@ -322,7 +312,7 @@ private fun AnimatedVisibilityScope.TenantReview(flow: TenantFlowState, units: L
     val error = { step: TenantStep -> flow.shown.entries.firstOrNull { it.key.step() == step }?.value }
     val amount = draft.amount.takeIf { validMoney(it) }?.let { CurrencyUtils.format(it.replace(',', '.').toDouble()) }
     val unit = units.firstOrNull { it.name.equals(draft.unit, ignoreCase = true) }
-    ReviewPage("Confira o cadastro", "Toque em uma resposta para corrigir. Nada é salvo antes de você confirmar.",
+    ReviewPage("Confira o cadastro",
         preview = {
             NaniDetailHero(
                 title = draft.name.trim().ifBlank { "Sem nome" },
