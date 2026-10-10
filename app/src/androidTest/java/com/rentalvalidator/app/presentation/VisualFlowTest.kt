@@ -309,10 +309,13 @@ class VisualFlowTest {
         compose.setContent {
             RentalValidatorTheme {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Box(Modifier.statusBarsPadding().width(360.dp)) {
-                        com.rentalvalidator.app.presentation.ui.tenants.TenantsOverview(people, listOf(home),
-                            com.rentalvalidator.app.presentation.ui.tenants.TenantViewMode.UNITS, "", false,
-                            onQuery = {}, onMode = {}, onUnit = {}, onTenant = {}, onFilters = {}, onAdd = {})
+                    // A Surface passes its minimum size on to its child, so the narrow column sits in a Box of its own.
+                    Box {
+                        Box(Modifier.statusBarsPadding().width(360.dp)) {
+                            com.rentalvalidator.app.presentation.ui.tenants.TenantsOverview(people, listOf(home),
+                                com.rentalvalidator.app.presentation.ui.tenants.TenantViewMode.UNITS, "", false,
+                                onQuery = {}, onMode = {}, onUnit = {}, onTenant = {}, onFilters = {}, onAdd = {})
+                        }
                     }
                 }
             }
