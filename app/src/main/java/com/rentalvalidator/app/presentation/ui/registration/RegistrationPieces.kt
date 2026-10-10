@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -72,6 +71,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -80,7 +80,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.presentation.components.AppMotion
+import com.rentalvalidator.app.presentation.design.BankCoin
 import com.rentalvalidator.app.presentation.design.LedgerRule
+import com.rentalvalidator.app.presentation.design.bankMarkOf
+import com.rentalvalidator.app.presentation.design.engravedCover
 import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
@@ -149,16 +152,19 @@ private fun DayCell(day: Int, selected: Boolean, onClick: () -> Unit, modifier: 
 }
 
 /**
- * The kinds of property as cards, two to a row (three on a wide screen), each with its mark and its
- * name, compact enough for all of them to fit on one screen. The chosen card turns into a small unit
- * cover, the same steel blue as the page the unit will open, so the answer already looks like what it makes.
+ * Choices that each stand for a place, as cards two to a row (three on a wide screen): the kinds
+ * of property, or the units a tenant can live in. Each card carries its mark and its name, compact
+ * enough for a whole set to fit on one screen. The chosen card turns into a small unit cover, the
+ * ruled steel blue of the page the unit opens on, so the answer already looks like what it makes.
+ * [labelStyle] sets the names: a kind reads as a label, a unit's name in the ledger's hand.
  */
 @Composable
-internal fun <T> TypeCards(
+internal fun <T> CoverChoices(
     options: List<T>,
     selected: T,
     label: (T) -> String,
     glyph: (T) -> ImageVector,
+    labelStyle: TextStyle = MaterialTheme.typography.titleSmall,
     onSelect: (T) -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -168,7 +174,7 @@ internal fun <T> TypeCards(
                 // Cards in a row share one height, so a name that wraps at a large font never leaves a neighbour short.
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { option ->
-                        TypeCard(label(option), glyph(option), option == selected, { onSelect(option) },
+                        CoverCard(label(option), glyph(option), labelStyle, option == selected, { onSelect(option) },
                             Modifier.weight(1f).fillMaxHeight())
                     }
                     repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
@@ -179,17 +185,18 @@ internal fun <T> TypeCards(
 }
 
 @Composable
-private fun TypeCard(label: String, glyph: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, selected: Boolean, onClick: () -> Unit,
+                      modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val nani = NaniTheme.colors
     val shape = RoundedCornerShape(AppSize.sheetRadius)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) .97f else 1f, AppMotion.PressScale, label = "type press")
+    val press by animateFloatAsState(if (pressed) .97f else 1f, AppMotion.PressScale, label = "cover press")
     val cover by animateFloatAsState(if (selected) 1f else 0f, tween(AppMotion.StateDuration, easing = AppMotion.Settle),
-        label = "type cover")
+        label = "cover chosen")
     val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
-        label = "type badge")
+        label = "cover badge")
     // Only the chosen card stands off the page, and only by day; at night the cover's own light is enough.
     val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(10.dp * cover, shape,
         ambientColor = nani.unitCoverEnd.copy(alpha = .14f), spotColor = nani.unitCoverEnd.copy(alpha = .3f))
@@ -198,35 +205,25 @@ private fun TypeCard(label: String, glyph: ImageVector, selected: Boolean, onCli
         .then(lift)
         .clip(shape)
         .background(colors.surface)
-        .drawBehind {
-            if (cover > 0f) {
-                drawRect(Brush.linearGradient(listOf(nani.unitCoverStart, nani.unitCoverEnd), start = Offset(size.width, 0f),
-                    end = Offset(0f, size.height)), alpha = cover)
-                drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = .14f), Color.Transparent),
-                    center = Offset(size.width, 0f), radius = size.height), alpha = cover)
-            }
-        }
+        .engravedCover(label, unit = true, reveal = { cover })
         .border(1.dp, colors.outlineVariant.copy(alpha = 1f - cover), shape)
         .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
         .heightIn(min = 112.dp)
         .padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            TypeMark(glyph, cover)
+            CoverMark(glyph, cover)
             Spacer(Modifier.weight(1f))
-            Box(Modifier.size(24.dp).graphicsLayer { alpha = badge.coerceIn(0f, 1f); scaleX = badge; scaleY = badge }
-                .background(nani.onPlaque, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = nani.unitCoverEnd)
-            }
+            ChosenBadge(badge, nani.onPlaque, nani.unitCoverEnd)
         }
         Spacer(Modifier.weight(1f).heightIn(min = 14.dp))
-        Text(label, style = MaterialTheme.typography.titleSmall, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 2,
+        Text(label, style = labelStyle, color = lerp(colors.onSurface, nani.onPlaque, cover), maxLines = 2,
             overflow = TextOverflow.Ellipsis)
     }
 }
 
-/** A type's mark, built like the unit's mark on its cover: the icon on a steel disc, ringed in light once chosen. */
+/** A place's mark, built like the unit's mark on its cover: the icon on a steel disc, ringed in light once chosen. */
 @Composable
-private fun TypeMark(glyph: ImageVector, cover: Float) {
+internal fun CoverMark(glyph: ImageVector, cover: Float) {
     val (fill, ink) = NaniTheme.colors.unitMark
     Box(Modifier.size(48.dp).background(NaniTheme.colors.onPlaque.copy(alpha = .18f * cover), CircleShape).padding(3.dp)
         .background(fill, CircleShape), contentAlignment = Alignment.Center) {
@@ -234,23 +231,30 @@ private fun TypeMark(glyph: ImageVector, cover: Float) {
     }
 }
 
+/** The check on a chosen card, springing in on its corner; [progress] runs from hidden to shown. */
+@Composable
+private fun ChosenBadge(progress: Float, fill: Color, ink: Color, size: Dp = 24.dp) {
+    Box(Modifier.size(size).graphicsLayer { alpha = progress.coerceIn(0f, 1f); scaleX = progress; scaleY = progress }
+        .background(fill, CircleShape), contentAlignment = Alignment.Center) {
+        Icon(Icons.Rounded.Check, null, Modifier.size(size * .66f), tint = ink)
+    }
+}
+
 /**
- * Short exclusive choices as a grid of equal tiles, such as the bank a rent arrives through or the
- * unit a tenant lives in: as many columns as fit tiles of [minTileWidth], two at least and four at
- * most. A tile never changes size when chosen (its check rides on the corner), so nothing around
- * it moves while the person taps through the options.
+ * The bank a rent arrives through, as cards three to a row on a phone: each bank's coin over its
+ * name, the way a payment app lists banks. The chosen card takes on the bank's own color, like a
+ * card picked out of a wallet, and its coin turns over; "no bank" turns ink-dark instead. No card
+ * changes size when chosen, so nothing moves while the person taps through them.
  */
 @Composable
-internal fun TileChoices(options: List<String>, selected: String, minTileWidth: Dp, onSelect: (String) -> Unit) {
+internal fun BankChoices(banks: List<String>, selected: String, onSelect: (String) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val gap = 10.dp
-        val columns = ((maxWidth + gap) / (minTileWidth + gap)).toInt().coerceIn(2, 4)
+        val columns = ((maxWidth + gap) / (96.dp + gap)).toInt().coerceIn(2, 4)
         Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(gap)) {
-            options.chunked(columns).forEach { row ->
+            banks.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    row.forEach { option ->
-                        ChoiceTile(option, option == selected, { onSelect(option) }, Modifier.weight(1f).fillMaxHeight())
-                    }
+                    row.forEach { bank -> BankCard(bank, bank == selected, { onSelect(bank) }, Modifier.weight(1f).fillMaxHeight()) }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
@@ -259,33 +263,49 @@ internal fun TileChoices(options: List<String>, selected: String, minTileWidth: 
 }
 
 @Composable
-private fun ChoiceTile(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun BankCard(bank: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val nani = NaniTheme.colors
-    val shape = RoundedCornerShape(AppSize.controlRadius)
+    val none = bank == NoBank
+    val mark = bankMarkOf(bank)
+    val fill = mark?.fill ?: colors.inverseSurface
+    val ink = mark?.ink ?: colors.inverseOnSurface
+    val shape = RoundedCornerShape(AppSize.sheetRadius)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) .97f else 1f, AppMotion.PressScale, label = "tile press")
+    val press by animateFloatAsState(if (pressed) .96f else 1f, AppMotion.PressScale, label = "bank press")
     val chosen by animateFloatAsState(if (selected) 1f else 0f, tween(AppMotion.StateDuration, easing = AppMotion.Settle),
-        label = "tile chosen")
+        label = "bank chosen")
     val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
-        label = "tile badge")
-    Box(modifier.graphicsLayer { scaleX = press; scaleY = press }) {
-        // Tall enough for a two-line name, so every row of the grid keeps one height.
-        Box(Modifier.fillMaxSize().heightIn(min = 60.dp).clip(shape)
-            .background(lerp(colors.surface, colors.primaryContainer, chosen))
-            .border(if (selected) 1.5.dp else 1.dp, lerp(colors.outlineVariant, colors.primary, chosen), shape)
+        label = "bank badge")
+    val lift = if (nani.isDark || chosen == 0f) Modifier else Modifier.shadow(8.dp * chosen, shape,
+        ambientColor = fill.copy(alpha = .18f), spotColor = fill.copy(alpha = .36f))
+    Box(modifier.graphicsLayer { scaleX = press; scaleY = press }.then(lift)) {
+        Column(Modifier.fillMaxSize().clip(shape).background(colors.surface)
+            .drawBehind {
+                if (chosen > 0f) {
+                    // The bank's color, lit from the upper right like every cover in the app.
+                    drawRect(Brush.linearGradient(listOf(lerp(fill, Color.White, .14f), fill), start = Offset(size.width, 0f),
+                        end = Offset(0f, size.height)), alpha = chosen)
+                    drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = .16f), Color.Transparent),
+                        center = Offset(size.width, 0f), radius = size.height), alpha = chosen)
+                }
+            }
+            .border(1.dp, colors.outlineVariant.copy(alpha = 1f - chosen), shape)
             .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
-                overflow = TextOverflow.Ellipsis, color = lerp(colors.onSurface, colors.onPrimaryContainer, chosen))
+            .heightIn(min = 108.dp)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            // Once chosen the coin turns over: the bank's ink becomes its face, in a ring of light.
+            Box(Modifier.size(44.dp).background(ink.copy(alpha = .22f * chosen), CircleShape), contentAlignment = Alignment.Center) {
+                if (none) BankCoin(bank, size = 36.dp, none = true, ink = lerp(colors.outline, ink, chosen))
+                else BankCoin(bank, size = 36.dp, fill = lerp(fill, ink, chosen), ink = lerp(ink, fill, chosen))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(bank, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2,
+                overflow = TextOverflow.Ellipsis, color = lerp(colors.onSurface, ink, chosen))
         }
-        Box(Modifier.align(Alignment.TopEnd).offset(x = 5.dp, y = (-5).dp).size(20.dp)
-            .graphicsLayer { alpha = badge.coerceIn(0f, 1f); scaleX = badge; scaleY = badge }
-            .background(nani.action, CircleShape).border(2.dp, colors.background, CircleShape),
-            contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Check, null, Modifier.size(12.dp), tint = nani.onAction)
-        }
+        Box(Modifier.align(Alignment.TopEnd).padding(7.dp)) { ChosenBadge(badge, ink, fill, size = 20.dp) }
     }
 }
 

@@ -177,6 +177,7 @@ internal fun UnitRegistration(
         stepper = flow.stepper,
         onTrail = { flow.open(UnitStep.entries[it]) },
         onClose = onClose,
+        preview = { UnitPreview(flow) },
         footer = {
             FlowFooter(
                 backLabel = if (flow.stepper.current == 0) firstBackLabel else "Voltar",
@@ -192,7 +193,7 @@ internal fun UnitRegistration(
         when (UnitStep.entries[index]) {
             UnitStep.TYPE -> StepPage("Que tipo de imóvel é?",
                 "O tipo dá o ícone da unidade, que aparece nas listas e na página dela.") {
-                TypeCards(TypeOrder, draft.type, { it.displayName() }, { it.glyph() }) { type ->
+                CoverChoices(TypeOrder, draft.type, { it.displayName() }, { it.glyph() }) { type ->
                     flow.edit(null) { copy(type = type) }
                 }
             }
@@ -247,6 +248,22 @@ internal fun UnitRegistration(
             UnitStep.REVIEW -> UnitReview(flow)
         }
     }
+}
+
+/**
+ * The unit's cover taking shape above the questions: its kind (the mark, and the name until there
+ * is one), then the name, the address and, once its step is reached, the capacity.
+ */
+@Composable
+private fun UnitPreview(flow: UnitFlowState) {
+    val draft = flow.draft
+    // The engraving follows the name as it stood when the page turned, so it does not shift with every letter.
+    val settled = remember(flow.stepper.current) { draft.name.trim() }.ifBlank { "unidade" }
+    val capacity = draft.capacityCount.takeIf { it > 0 && flow.stepper.furthest >= UnitStep.CAPACITY.ordinal }
+        ?.let { "$it ${draft.capacityKind.noun(it)}" }
+    val line = listOfNotNull(draft.location.trim().ifBlank { null }, capacity).joinToString(" · ").ifBlank { null }
+    FlowPreview(seed = settled, unit = true, name = draft.name, placeholder = draft.type.displayName(), line = line,
+        linePlaceholder = "Endereço e capacidade", mark = { cover -> CoverMark(draft.type.glyph(), cover) })
 }
 
 @Composable

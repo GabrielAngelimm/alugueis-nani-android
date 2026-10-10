@@ -111,7 +111,7 @@ internal fun RegistrationEditor(
         }
     }
 
-    NaniEditor(onDismiss = back, edgeToEdge = true) {
+    NaniEditor(onDismiss = back) {
         AnimatedContent(kind, Modifier.fillMaxSize(), label = "registration kind", transitionSpec = {
             val forward = initialState == null
             (slideInHorizontally(AppMotion.PageSlide) { if (forward) it / 4 else -it / 4 } + fadeIn(AppMotion.EnterFade)) togetherWith

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
@@ -60,14 +62,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -76,6 +83,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -84,7 +92,10 @@ import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.components.PrimaryButton
 import com.rentalvalidator.app.presentation.components.SecondaryButton
 import com.rentalvalidator.app.presentation.design.LedgerRule
+import com.rentalvalidator.app.presentation.design.engravedCover
+import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.AppSpace
+import com.rentalvalidator.app.presentation.theme.NaniSerif
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 
 /*
@@ -122,7 +133,12 @@ internal class StepperState(private val count: Int) {
     }
 }
 
-/** The frame of a guided registration: title, step rule, the step itself and its two actions. */
+/**
+ * The frame of a guided registration: title, step rule, the record taking shape ([preview], when
+ * given), the step itself and its two actions. The preview stands back on the review, which shows
+ * the full cover, and on a window too short for it (a small phone with the keyboard up), so the
+ * question always keeps its room.
+ */
 @Composable
 internal fun GuidedFlow(
     title: String,
@@ -131,19 +147,88 @@ internal fun GuidedFlow(
     stepper: StepperState,
     onTrail: (Int) -> Unit,
     onClose: () -> Unit,
+    preview: (@Composable () -> Unit)? = null,
     footer: @Composable () -> Unit,
     content: @Composable AnimatedContentScope.(step: Int) -> Unit
 ) {
-    Column(Modifier.fillMaxSize().imePadding()) {
-        FlowTopBar(title, subtitle, null, onClose)
-        StepIndicator(steps, stepper.current, stepper.furthest, compact = keyboardOpen(), onStep = onTrail)
-        AnimatedContent(stepper.current, Modifier.weight(1f).fillMaxWidth(), label = "guided step", transitionSpec = {
-            // Forward pages come from the right, like turning to the next page of the ledger.
-            val forward = targetState > initialState
-            (slideInHorizontally(AppMotion.PageSlide) { if (forward) it / 4 else -it / 4 } + fadeIn(AppMotion.EnterFade)) togetherWith
-                (slideOutHorizontally(AppMotion.PageSlide) { if (forward) -it / 6 else it / 6 } + fadeOut(AppMotion.ExitFade))
-        }) { step -> content(step) }
-        footer()
+    BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
+        val roomy = maxHeight >= PreviewRoom
+        Column(Modifier.fillMaxSize()) {
+            FlowTopBar(title, subtitle, null, onClose)
+            StepIndicator(steps, stepper.current, stepper.furthest, compact = keyboardOpen(), onStep = onTrail)
+            if (preview != null) AnimatedVisibility(roomy && !stepper.isLast,
+                enter = fadeIn(AppMotion.EnterFade) + expandVertically(), exit = fadeOut(AppMotion.ExitFade) + shrinkVertically()) {
+                preview()
+            }
+            AnimatedContent(stepper.current, Modifier.weight(1f).fillMaxWidth(), label = "guided step", transitionSpec = {
+                // Forward pages come from the right, like turning to the next page of the ledger.
+                val forward = targetState > initialState
+                (slideInHorizontally(AppMotion.PageSlide) { if (forward) it / 4 else -it / 4 } + fadeIn(AppMotion.EnterFade)) togetherWith
+                    (slideOutHorizontally(AppMotion.PageSlide) { if (forward) -it / 6 else it / 6 } + fadeOut(AppMotion.ExitFade))
+            }) { step -> content(step) }
+            footer()
+        }
+    }
+}
+
+/** Below this height the preview gives its room to the question. */
+private val PreviewRoom = 500.dp
+
+/** The name on a preview: the cover's serif, a size down so it fits one line beside the mark. */
+private val PreviewName = TextStyle(fontFamily = NaniSerif, fontWeight = FontWeight.SemiBold, fontSize = 19.sp,
+    lineHeight = 24.sp, letterSpacing = (-0.2).sp)
+
+/**
+ * The record taking shape above the questions, the way a payment app draws the card being added:
+ * a blank card outlined in pencil, with the [placeholder] and [linePlaceholder] in grey, until the
+ * record has a [name]; then the cover itself, engraved from [seed] (ruled steel for a [unit]),
+ * filling in answer by answer in [line], on a second line when it needs one. [mark] draws the disc
+ * on the left, given how far the cover has come in.
+ */
+@Composable
+internal fun FlowPreview(
+    seed: String,
+    unit: Boolean,
+    name: String,
+    placeholder: String,
+    line: String?,
+    linePlaceholder: String,
+    mark: @Composable (cover: Float) -> Unit
+) {
+    val nani = NaniTheme.colors
+    val colors = MaterialTheme.colorScheme
+    val cover by animateFloatAsState(if (name.isNotBlank()) 1f else 0f, tween(AppMotion.PageDuration, easing = AppMotion.Settle),
+        label = "preview cover")
+    val shape = RoundedCornerShape(AppSize.sheetRadius)
+    val deep = if (unit) nani.unitCoverEnd else nani.coverEnd
+    val lift = if (nani.isDark || cover == 0f) Modifier else Modifier.shadow(10.dp * cover, shape,
+        ambientColor = deep.copy(alpha = .14f), spotColor = deep.copy(alpha = .3f))
+    val pencil = colors.outline
+    Row(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(bottom = 12.dp)
+        .then(lift).clip(shape).background(colors.surface)
+        .engravedCover(seed, unit, reveal = { cover })
+        .drawWithContent {
+            drawContent()
+            val outline = 1f - cover
+            if (outline > 0f) {
+                val stroke = 1.2.dp.toPx()
+                drawRoundRect(pencil, Offset(stroke / 2, stroke / 2), Size(size.width - stroke, size.height - stroke),
+                    CornerRadius(AppSize.sheetRadius.toPx()), alpha = .55f * outline,
+                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))))
+            }
+        }
+        .semantics(mergeDescendants = true) { }
+        .heightIn(min = 76.dp)
+        .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        mark(cover)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name.trim().ifBlank { placeholder }, style = PreviewName,
+                color = lerp(colors.onSurfaceVariant, nani.onPlaque, cover), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(line ?: linePlaceholder, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                color = if (line == null) lerp(colors.outline, nani.onPlaque.copy(alpha = .62f), cover)
+                else lerp(colors.onSurfaceVariant, nani.onPlaque.copy(alpha = .86f), cover))
+        }
     }
 }
 

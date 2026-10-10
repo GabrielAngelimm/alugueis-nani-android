@@ -16,9 +16,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -42,12 +45,13 @@ internal fun initialsOf(name: String): String {
 /**
  * A person's monogram. The tint is derived from the name, so the same tenant keeps the
  * same color on every screen and people become recognizable before their names are read.
- * Letters are sized in dp: the circle is a fixed glyph, not running text.
+ * [tone] picks the color instead, for a name still being typed. Letters are sized in dp: the
+ * circle is a fixed glyph, not running text.
  */
 @Composable
-fun Monogram(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
+fun Monogram(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, tone: String = name) {
     val tones = NaniTheme.colors.monograms
-    val (fill, ink) = tones[abs(name.trim().lowercase().hashCode()) % tones.size]
+    val (fill, ink) = tones[abs(tone.trim().lowercase().hashCode()) % tones.size]
     val fontSize = with(LocalDensity.current) { (size * .38f).toSp() }
     Box(modifier.size(size).clearAndSetSemantics { }.background(fill, CircleShape), contentAlignment = Alignment.Center) {
         Text(initialsOf(name), style = TextStyle(fontFamily = NaniSans, fontWeight = FontWeight.ExtraBold,
@@ -68,6 +72,60 @@ fun UnitPlaque(name: String, modifier: Modifier = Modifier, size: Dp = 44.dp) {
         Box(Modifier.matchParentSizeInset(size).border(1.dp, colors.onPlaque.copy(alpha = .42f), RoundedCornerShape(size * .17f)))
         Text(initialsOf(name), style = TextStyle(fontFamily = NaniSerifText, fontWeight = FontWeight.SemiBold,
             fontSize = fontSize), color = colors.onPlaque)
+    }
+}
+
+/** How a bank is told apart at a glance: a short lettering in the colors people know the bank by. */
+@Immutable
+internal data class BankMark(val mark: String, val fill: Color, val ink: Color)
+
+/**
+ * The banks a rent usually arrives through. The letterings only hint at each brand, they are not
+ * its logo; the colors are the ones on the bank's cards and app, the same by day and by night.
+ */
+private val BankMarks = mapOf(
+    "Nubank" to BankMark("nu", Color(0xFF820AD1), Color.White),
+    "Itaú" to BankMark("It", Color(0xFFEC7000), Color(0xFF003399)),
+    "Santander" to BankMark("S", Color(0xFFEC0000), Color.White),
+    "Mercado Pago" to BankMark("MP", Color(0xFF009EE3), Color.White),
+    "PagSeguro" to BankMark("PS", Color(0xFF1DA851), Color.White),
+    "Bradesco" to BankMark("B", Color(0xFFCC092F), Color.White),
+    "Banco do Brasil" to BankMark("BB", Color(0xFFFADF1E), Color(0xFF3446D9)),
+    "Inter" to BankMark("in", Color(0xFFFF7A00), Color.White),
+    "Caixa" to BankMark("CX", Color(0xFF005CA9), Color.White),
+    "Sicredi" to BankMark("Si", Color(0xFF3FA110), Color.White)
+)
+
+/** The bank's mark, or null for a bank without one (and for "no bank"). */
+internal fun bankMarkOf(bank: String): BankMark? = BankMarks[bank.trim()]
+
+/**
+ * A bank as a coin in its own color with its lettering, the way a payment app lists banks. A bank
+ * without a mark gets its initials on a quiet coin; [none] is the empty coin of "no bank". [fill]
+ * and [ink] override the coin's colors, for a coin that turns over on a chosen card.
+ */
+@Composable
+fun BankCoin(
+    bank: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp,
+    none: Boolean = false,
+    fill: Color = Color.Unspecified,
+    ink: Color = Color.Unspecified
+) {
+    val colors = MaterialTheme.colorScheme
+    val mark = bankMarkOf(bank)
+    val letters = mark?.mark ?: initialsOf(bank)
+    val fontSize = with(LocalDensity.current) { (size * if (letters.length > 1) .36f else .44f).toSp() }
+    val face = fill.takeOrElse { mark?.fill ?: colors.surfaceContainerHighest }
+    val lettering = ink.takeOrElse { if (none) colors.outline else mark?.ink ?: colors.onSurfaceVariant }
+    Box(modifier.size(size).clearAndSetSemantics { }.then(
+        if (none) Modifier.border(1.5.dp, lettering.copy(alpha = .6f), CircleShape) else Modifier.background(face, CircleShape)),
+        contentAlignment = Alignment.Center) {
+        if (none) Box(Modifier.size(size * .34f, 2.dp).background(lettering, CircleShape))
+        else Text(letters, style = TextStyle(fontFamily = NaniSans, fontWeight = FontWeight.ExtraBold,
+            fontSize = fontSize, letterSpacing = with(LocalDensity.current) { (-size * .01f).toSp() }),
+            color = lettering, maxLines = 1)
     }
 }
 

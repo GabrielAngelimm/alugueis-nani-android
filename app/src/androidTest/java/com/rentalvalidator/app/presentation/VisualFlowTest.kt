@@ -852,7 +852,7 @@ class VisualFlowTest {
         editorField("CPF").performTextReplacement("52998224725")
         press("Avançar")
 
-        editor(hasText("Nubank") and hasClickAction()).performClick()
+        editor(hasText("Nubank") and hasClickAction()).performScrollTo().performClick()
         // A name typed but not added still counts when the step is left.
         editorField("Outro nome no extrato").performScrollTo().performTextInput("Helena Pix")
         press("Revisar")
