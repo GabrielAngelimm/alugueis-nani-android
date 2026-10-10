@@ -130,7 +130,8 @@ private fun MonthLedger(data: OverviewSnapshot, states: List<DueState>, onPaymen
     val stats = dueStats(counts)
     val percent = percentOf(counts.paid, counts.total)
     LedgerSheet(Modifier.padding(horizontal = AppSpace.page)) {
-        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
+        // The same 20dp on both sides as the rows below, so the counters sit centered on the sheet.
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Recebido em $month", style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)

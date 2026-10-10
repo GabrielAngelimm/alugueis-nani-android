@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -42,8 +43,11 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.presentation.components.AppMotion
@@ -140,31 +144,54 @@ private fun StatDot(stat: StatCount, size: Dp = 10.dp) {
 }
 
 /**
- * Explicit counts beside a ring: the numbers people act on (paid, due, late), each with the
- * same marker the ring uses. Zeros are kept quiet; a late count is raised in its own ink.
+ * Explicit counts beside a ring: the numbers people act on (paid, due, late), each in an equal
+ * column centered on its count, with the ring's marker beside the label. Columns are split by
+ * the same inset rule. Zeros are kept quiet; a late count is raised in its own ink.
  */
 @Composable
 fun StatTiles(stats: List<StatCount>, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLow)) {
-        stats.forEachIndexed { index, stat ->
-            if (index > 0) VerticalDivider(Modifier.fillMaxHeight().padding(vertical = 12.dp), color = colors.outlineVariant)
-            Column(Modifier.weight(1f).semantics(mergeDescendants = true) { }.padding(horizontal = 12.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    StatDot(stat)
-                    Text(stat.count.toString(), style = NaniType.moneyLarge, maxLines = 1,
-                        color = when {
-                            stat.count == 0 -> colors.onSurfaceVariant
-                            stat.emphasize -> stat.color
-                            else -> colors.onSurface
-                        })
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val labelStyle = MaterialTheme.typography.bodySmall
+        // A label shares its line with the marker. When one is too long for its column (four states on a
+        // narrow phone), all labels are set a little smaller together; past that, the markers move up beside
+        // the counts in every column, so the labels get the full width and the columns still match.
+        val room = with(density) {
+            ((maxWidth - (stats.size - 1).dp) / stats.size.coerceAtLeast(1) - StatPadding * 2 - StatMarker - StatMarkerGap).toPx()
+        }
+        val widest = stats.maxOfOrNull { measurer.measure(AnnotatedString(it.label), labelStyle, softWrap = false).size.width } ?: 0
+        val scale = if (widest <= room) 1f else room / widest
+        val markerBesideLabel = scale >= .85f
+        val fittedLabel = if (markerBesideLabel) labelStyle.scaled(scale) else labelStyle
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLow)) {
+            stats.forEachIndexed { index, stat ->
+                if (index > 0) VerticalDivider(Modifier.fillMaxHeight().padding(vertical = 14.dp), color = colors.outlineVariant)
+                Column(Modifier.weight(1f).semantics(mergeDescendants = true) { }.padding(horizontal = StatPadding, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(StatMarkerGap)) {
+                        if (!markerBesideLabel) StatDot(stat, StatMarker)
+                        Text(stat.count.toString(), style = NaniType.moneyLarge, maxLines = 1, softWrap = false,
+                            color = when {
+                                stat.count == 0 -> colors.onSurfaceVariant
+                                stat.emphasize -> stat.color
+                                else -> colors.onSurface
+                            })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(StatMarkerGap)) {
+                        if (markerBesideLabel) StatDot(stat, StatMarker)
+                        Text(stat.label, style = fittedLabel, color = colors.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2)
+                    }
                 }
-                Text(stat.label, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2)
             }
         }
     }
 }
+
+private val StatPadding = 4.dp
+private val StatMarker = 8.dp
+private val StatMarkerGap = 5.dp
 
 /** A compact legend for rings where the counts are secondary. */
 @OptIn(ExperimentalLayoutApi::class)

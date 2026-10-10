@@ -7,6 +7,9 @@ class EngravingTest {
     private val names = listOf("Jardim das Oliveiras", "Esio 46", "Marina Oliveira", "Fabio Jose Santos",
         "Ana Beatriz de Albuquerque", "Geral", "Casa 2", "Kitnet Centro")
 
+    /** Angles across the quarter the cover draws, from just before straight down to just past straight left. */
+    private val angles = (0..140).map { (.47f + it * .004f) * Math.PI.toFloat() }
+
     @Test fun aNameKeepsItsEngravingAcrossVisits() {
         assertEquals(engravingOf("Marina Oliveira"), engravingOf("Marina Oliveira"))
         // Spacing and case typed differently still belong to the same record.
@@ -19,35 +22,48 @@ class EngravingTest {
 
     @Test fun everyEngravingStaysWithinItsDesignedRange() {
         (names + (1..200).map { "Unidade $it" }).map(::engravingOf).forEach {
-            assertTrue(it.wavelength in .55f..0.9f)
-            assertTrue(it.amplitude in .12f..0.22f)
+            assertTrue(it.waves in 4f..6f)
+            assertTrue(it.amplitude in .016f..0.028f)
             assertTrue(it.phase in 0f..(2 * Math.PI).toFloat())
-            assertTrue(it.twist in .2f..0.42f)
-            assertTrue(it.tilt in -.18f..0.18f)
+            assertTrue(it.twist in .05f..0.3f)
         }
     }
 
-    @Test fun strandsCoverTheWholeCoverWithoutRunningAway() {
-        val width = 360f
-        val height = 140f
-        names.map(::engravingOf).forEach { engraving ->
-            val bases = (0 until EngravingStrands).map { engraving.strandY(it, width / 2, width, height) -
-                engraving.amplitude * height * kotlin.math.sin(2 * Math.PI.toFloat() * .5f / engraving.wavelength +
-                    engraving.phase + it * engraving.twist) }
-            // Strands are spread evenly from just above the top edge to just below the bottom one.
-            assertTrue(bases.first() < height * .05f)
-            assertTrue(bases.last() > height * .95f)
-            bases.zipWithNext { a, b -> assertEquals(height * 1.2f / EngravingStrands, b - a, 1e-2f) }
-            for (index in 0 until EngravingStrands) for (x in listOf(0f, width / 3, width)) for (crossing in listOf(false, true)) {
-                assertTrue(engraving.strandY(index, x, width, height, crossing) in -height * .5f..height * 1.5f)
+    @Test fun ringsOpenUpFromTheLitCornerAndNeverTouch() {
+        // From the shortest cover to one holding a three-line name, on a phone and on a wide window.
+        for ((width, height) in listOf(360f to 132f, 360f to 200f, 320f to 140f, 920f to 132f)) {
+            names.map(::engravingOf).forEach { engraving ->
+                assertEquals(height * .3f, engraving.ringRadius(0, angles[0], width, height), height * .03f)
+                for (angle in angles) {
+                    val radii = (0 until EngravingRings).map { engraving.ringRadius(it, angle, width, height) }
+                    radii.zipWithNext { inner, outer -> assertTrue(outer - inner > 2f) }
+                }
+                // Each gap is wider than the one before it, measured without the ripples.
+                val gaps = (0 until EngravingRings).map { ring ->
+                    angles.map { engraving.ringRadius(ring, it, width, height) }.average()
+                }.zipWithNext { inner, outer -> outer - inner }
+                assertTrue(gaps.last() > gaps.first())
             }
         }
     }
 
-    @Test fun theCrossingSetTwistsTheOtherWay() {
+    @Test fun theRingsStayClearOfTheMark() {
+        // The mark ends 84dp from the left edge of the cover (20dp padding and a 64dp mark).
+        for (width in listOf(320f, 360f, 412f, 600f, 920f)) {
+            names.map(::engravingOf).forEach { engraving ->
+                val outermost = angles.minOf { angle ->
+                    width * EngravingCenterX + engraving.ringRadius(EngravingRings - 1, angle, width, 140f) * kotlin.math.cos(angle)
+                }
+                assertTrue("width $width reaches $outermost", outermost > 84f)
+            }
+        }
+    }
+
+    @Test fun ripplesTurnFromOneRingToTheNext() {
         val engraving = engravingOf("Jardim das Oliveiras")
-        // The first strand has no twist yet, so both sets start it at the same height.
-        assertEquals(engraving.strandY(0, 10f, 360f, 140f), engraving.strandY(0, 10f, 360f, 140f, crossing = true), 1e-4f)
-        assertNotEquals(engraving.strandY(5, 10f, 360f, 140f), engraving.strandY(5, 10f, 360f, 140f, crossing = true), 1e-2f)
+        // A ring's base radius is the same all around, so its widest point is the crest of its ripple.
+        fun crest(ring: Int) = angles.maxBy { engraving.ringRadius(ring, it, 360f, 140f) }
+        // Crests of the inner and outer rings sit at different angles, so the lines flow instead of stacking.
+        assertNotEquals(crest(0), crest(EngravingRings - 1), 1e-3f)
     }
 }
