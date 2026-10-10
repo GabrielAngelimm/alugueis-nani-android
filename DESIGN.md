@@ -52,7 +52,7 @@ Inquilino e unidade abrem com um único cartão. O topo é uma capa azul, como a
 
 | Componente | Arquivo | Papel |
 | --- | --- | --- |
-| `NaniHeader`, `NaniTabs`, `NaniSection`, `NaniEditor` | `design/Layout.kt` | Cabeçalhos, controle segmentado, seções e editor em tela cheia, desenhado atrás das barras e do teclado: o conteúdo sobe os próprios botões (`imePadding`), sem o sistema empurrar a tela |
+| `NaniHeader`, `NaniTabs`, `NaniSection`, `NaniEditor` | `design/Layout.kt` | Cabeçalhos, controle segmentado, seções e editor em tela cheia, desenhado atrás das barras e do teclado: o conteúdo sobe os próprios botões (`imePadding`), sem o sistema empurrar a tela. A partir do Android 15, a janela cobre também as barras do sistema, para os botões do rodapé nunca ficarem cortados |
 | `LedgerSheet`, `LedgerSlice`, `LedgerRule`, `NaniActionRow`, `NaniFact` | `design/Ledger.kt` | Folhas pautadas e linhas de lista |
 | `StatusMark` | `design/Status.kt` | Carimbo, marca-texto, tracejado e contorno |
 | `StatusRing`, `RingLabel`, `StatTiles`, `RingLegend`, `dueStats`, `ringOf` | `design/Progress.kt` | Anéis por contagem do Início, de Receber e de Docs, com contadores e legendas da mesma lista; nos contadores do Início, cada estado ocupa uma coluna igual, com o número centralizado e sublinhado por um traço curto na cor do seu arco no anel (o traço fica no tom do trilho quando o estado está vazio), separadas por fios de mesma altura; a geometria (`ringMarks`) é testada em `RingMathTest` |

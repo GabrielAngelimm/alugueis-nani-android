@@ -1,5 +1,9 @@
 package com.rentalvalidator.app.presentation.design
 
+import android.os.Build
+import android.view.Window
+import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -163,6 +167,11 @@ fun NaniSection(
  * the system: the editor keeps the status bar clear and leaves the bottom to its content, which
  * lifts its own actions with the keyboard (`imePadding`) and clears the navigation bar. Nothing is
  * pushed off the top when a field takes focus.
+ *
+ * The dialog sizes its window from `Configuration.screenWidthDp`/`screenHeightDp`, which from
+ * Android 15 (for apps targeting it) include the system bars. Held between the bars, such a window
+ * cuts off the bottom of the editor, where Back and Next sit, so there it covers them too
+ * ([coverSystemBars]).
  */
 @Composable
 fun NaniEditor(onDismiss: () -> Unit, content: @Composable () -> Unit) {
@@ -172,9 +181,10 @@ fun NaniEditor(onDismiss: () -> Unit, content: @Composable () -> Unit) {
         val window = (view.parent as DialogWindowProvider).window
         val light = MaterialTheme.colorScheme.background.luminance() > .5f
         SideEffect {
-            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             window.decorView.elevation = 0f
             androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) window.coverSystemBars()
             @Suppress("DEPRECATION")
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             @Suppress("DEPRECATION")
@@ -190,5 +200,17 @@ fun NaniEditor(onDismiss: () -> Unit, content: @Composable () -> Unit) {
                 Box(Modifier.widthIn(max = AppSize.editorMaxWidth).fillMaxSize()) { content() }
             }
         }
+    }
+}
+
+/** Lays the window out over the status bar, the navigation bar and any display cutout. */
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+private fun Window.coverSystemBars() {
+    if (attributes.fitInsetsTypes == 0) return
+    addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+    attributes = attributes.apply {
+        fitInsetsTypes = 0
+        fitInsetsSides = 0
+        layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
     }
 }
