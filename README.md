@@ -13,7 +13,7 @@ A aplicação funciona localmente, sem conta, servidor ou conexão com a interne
 ## O que o aplicativo faz
 
 - **Início:** resumo da competência atual, quem ainda falta pagar, estados de pagamento e histórico estimado de recebimentos.
-- **Locações:** cadastro de moradores e unidades, valor do aluguel, vencimento, nomes alternativos e informações de contato.
+- **Locações:** cadastro guiado de moradores e unidades, uma pergunta por etapa e revisão antes de salvar; valor do aluguel, vencimento, nomes alternativos e informações de contato.
 - **Receber:** controle mensal com pagamentos pendentes, parciais e pagos, visão anual por morador; conferência de créditos extraídos de PDF ou CSV.
 - **Docs:** anexos de contrato e vistoria, datas de referência e acesso aos arquivos pelo Android.
 - **Lembretes:** notificações locais por morador, com antecedência configurável.

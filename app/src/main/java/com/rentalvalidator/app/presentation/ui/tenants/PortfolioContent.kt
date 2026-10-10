@@ -73,7 +73,8 @@ import com.rentalvalidator.app.util.CurrencyUtils
 internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mode: TenantViewMode,
     query: String, hasFilters: Boolean, onQuery: (String) -> Unit, onMode: (TenantViewMode) -> Unit,
     onUnit: (String) -> Unit, onTenant: (Tenant) -> Unit, onFilters: () -> Unit, onAdd: () -> Unit,
-    listState: LazyListState = rememberLazyListState(), allTenants: List<Tenant> = tenants) {
+    listState: LazyListState = rememberLazyListState(), allTenants: List<Tenant> = tenants,
+    onAddUnit: () -> Unit = onAdd, onAddTenant: () -> Unit = onAdd) {
     var showSearch by remember { mutableStateOf(false) }
     if (showSearch) NaniSearchDialog(query, onQuery, { showSearch = false })
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp + LocalNavigationClearance.current)) {
@@ -90,7 +91,7 @@ internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mod
                         shape = RoundedCornerShape(AppSize.controlRadius),
                         colors = IconButtonDefaults.filledIconButtonColors(containerColor = NaniTheme.colors.action,
                             contentColor = NaniTheme.colors.onAction)) {
-                        Icon(Icons.Rounded.Add, if (mode == TenantViewMode.UNITS) "Adicionar unidade" else "Adicionar inquilino")
+                        Icon(Icons.Rounded.Add, "Novo cadastro")
                     }
                 }
                 NaniTabs(listOf("Unidades", "Inquilinos"), if (mode == TenantViewMode.UNITS) 0 else 1,
@@ -107,7 +108,7 @@ internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mod
                     "Nenhuma unidade tem inquilinos que correspondam à busca ou aos filtros.")
                 else AppEmptyState(Icons.Rounded.MeetingRoom, "Nenhuma unidade cadastrada",
                     "Cadastre a casa, apartamento ou quarto para organizar os inquilinos por endereço.",
-                    actionLabel = "Adicionar unidade", onAction = onAdd)
+                    actionLabel = "Adicionar unidade", onAction = onAddUnit)
             }
             val residentsByUnit = allTenants.groupBy { it.unit.ifBlank { "Geral" } }
             items(names, key = { it }) { name ->
@@ -119,7 +120,7 @@ internal fun TenantsOverview(tenants: List<Tenant>, units: List<RentalUnit>, mod
                     "Ajuste a busca ou os filtros para ver outros inquilinos.")
                 else AppEmptyState(Icons.Rounded.Cottage, "Nenhum inquilino cadastrado",
                     "Cadastre um inquilino com o valor do aluguel e o dia de vencimento.",
-                    actionLabel = "Adicionar inquilino", onAction = onAdd)
+                    actionLabel = "Adicionar inquilino", onAction = onAddTenant)
             }
             itemsIndexed(tenants, key = { _, tenant -> tenant.id }) { index, tenant ->
                 TenantRecord(tenant, onTenant, ledgerPosition(index, tenants.size))
