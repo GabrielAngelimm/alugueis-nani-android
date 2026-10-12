@@ -1,7 +1,6 @@
 package com.rentalvalidator.app.presentation.design
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -141,11 +140,7 @@ private val CoverDisc = 58.dp
 /** Every cover mark is the same round disc, set in a ring of glass that catches the cover's light. */
 @Composable
 private fun CoverMark(disc: @Composable () -> Unit) {
-    val glass = NaniTheme.colors.onPlaque
-    Box(Modifier.size(64.dp).clearAndSetSemantics { }.background(glass.copy(alpha = .14f), CircleShape)
-        .border(1.dp, glass.copy(alpha = .22f), CircleShape).padding(3.dp), contentAlignment = Alignment.Center) {
-        disc()
-    }
+    GlassRing(Modifier.size(64.dp).clearAndSetSemantics { }) { disc() }
 }
 
 /** A unit on the cover: what it is, drawn like a monogram, with its type's icon in place of letters. */

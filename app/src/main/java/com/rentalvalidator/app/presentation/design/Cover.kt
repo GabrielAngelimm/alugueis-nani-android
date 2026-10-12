@@ -32,33 +32,21 @@ import kotlin.random.Random
  * surface a touch, the way a metal card looks in the hand. There are no lines or marks: the cover
  * is told apart by its light and color alone, and the record's own mark sits on top of it.
  *
- * [reveal] fades the whole cover in, for a card that becomes a cover when chosen; it is read
- * while drawing, so the fade never recomposes. A [quiet] cover only glows faintly with the
- * cover's color from the corner, over whatever the card is, for a card that should sit calmly in
- * the page. [seed] names the record the cover stands for; every record of a kind gets the same
- * material, so the cover never varies with it.
+ * [reveal] fades the whole cover in, for a card that becomes a cover when chosen or named; it is
+ * read while drawing, so the fade never recomposes. [seed] names the record the cover stands for;
+ * every record of a kind gets the same material, so the cover never varies with it.
  */
 @Composable
 internal fun Modifier.engravedCover(
     seed: String,
     unit: Boolean,
-    reveal: () -> Float = { 1f },
-    quiet: Boolean = false
+    reveal: () -> Float = { 1f }
 ): Modifier {
     val nani = NaniTheme.colors
     val tone = if (unit) nani.unitCover else nani.tenantCover
-    val dark = nani.isDark
     return drawWithCache {
         val width = size.width
         val height = size.height
-        if (quiet) {
-            val wash = Brush.radialGradient(listOf(tone.lit.copy(alpha = if (dark) .2f else .11f), Color.Transparent),
-                center = Offset(width, 0f), radius = maxOf(width * .7f, height * 1.8f))
-            return@drawWithCache onDrawBehind {
-                val alpha = reveal().coerceIn(0f, 1f)
-                if (alpha > 0f) drawRect(wash, alpha = alpha)
-            }
-        }
         val ground = Brush.linearGradient(0f to tone.mid, 1f to tone.deep, start = Offset(width, 0f), end = Offset(0f, height))
         val depth = Brush.radialGradient(listOf(tone.deep.copy(alpha = .7f), Color.Transparent),
             center = Offset(-width * .05f, height * .45f), radius = maxOf(width * .5f, height * 1.2f))
