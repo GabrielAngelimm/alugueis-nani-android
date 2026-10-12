@@ -15,6 +15,9 @@ interface PaymentDao {
     @Query("SELECT * FROM payments WHERE tenantId = :tenantId")
     suspend fun getPaymentsForTenant(tenantId: String): List<PaymentEntity>
 
+    @Query("SELECT * FROM payments WHERE tenantId = :tenantId")
+    fun getPaymentsForTenantFlow(tenantId: String): Flow<List<PaymentEntity>>
+
     @Query("SELECT * FROM payments WHERE tenantId = :tenantId AND year = :year AND month = :month")
     suspend fun getPayment(tenantId: String, year: Int, month: Int): PaymentEntity?
 

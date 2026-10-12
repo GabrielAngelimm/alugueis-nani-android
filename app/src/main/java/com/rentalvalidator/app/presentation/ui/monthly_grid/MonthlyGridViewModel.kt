@@ -25,9 +25,7 @@ data class MonthlyGridState(
     val month: Int = LocalDate.now().monthValue,
     val items: List<TenantPaymentItem> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null,
-    /** Stored status by tenant and month for [year]; read-only context for the per-tenant year view. */
-    val yearStatuses: Map<String, Map<Int, PaymentStatus>> = emptyMap()
+    val error: String? = null
 )
 
 @HiltViewModel
@@ -65,13 +63,11 @@ class MonthlyGridViewModel @Inject constructor(
                         val payment = monthPayments.find { it.tenantId == tenant.id }
                         TenantPaymentItem(tenant, payment)
                     }
-                    val yearStatuses = allPayments.groupBy { it.tenantId }
-                        .mapValues { (_, payments) -> payments.associate { it.month to it.status } }
-                    items.sortedBy { it.tenant.unit } to yearStatuses
-                }.collect { (items, yearStatuses) ->
+                    items.sortedBy { it.tenant.unit }
+                }.collect { items ->
                     hasLoadedOnce = true
                     _state.update { it.copy(year = period.year, month = period.monthValue,
-                        items = items, isLoading = false, error = null, yearStatuses = yearStatuses) }
+                        items = items, isLoading = false, error = null) }
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled

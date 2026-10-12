@@ -8,6 +8,8 @@ interface PaymentRepository {
     fun getPaymentsFlow(year: Int): Flow<List<Payment>>
     suspend fun getPaymentsByYear(year: Int): List<Payment>
     suspend fun getPaymentsForTenant(tenantId: String): List<Payment>
+    /** Every month recorded for one tenant, across all years, updated as records change. */
+    fun getTenantPaymentsFlow(tenantId: String): Flow<List<Payment>>
     suspend fun getPayment(tenantId: String, year: Int, month: Int): Payment?
     suspend fun savePayment(tenantId: String, year: Int, month: Int, status: PaymentStatus)
     suspend fun deletePayment(tenantId: String, year: Int, month: Int)
