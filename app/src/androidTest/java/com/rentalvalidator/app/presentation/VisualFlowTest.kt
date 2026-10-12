@@ -850,6 +850,10 @@ class VisualFlowTest {
         press("Avançar")
 
         editorText("Em qual unidade Helena mora?").assertIsDisplayed()
+        // Nothing comes chosen, so a hurried "Avançar" asks for the unit instead of filing Helena under Geral.
+        editor(hasText(RentalUnit.GERAL_NAME) and hasClickAction()).assertIsNotSelected()
+        press("Avançar")
+        editorText("Escolha a unidade").assertExists()
         editor(hasText("Jardim das Oliveiras") and hasClickAction()).performClick()
         editor(hasText("Jardim das Oliveiras") and hasClickAction()).assertIsSelected()
         press("Avançar")

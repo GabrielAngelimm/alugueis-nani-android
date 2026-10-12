@@ -94,7 +94,7 @@ internal fun RegistrationEditor(
     onSaveUnit: (RentalUnit, onError: (String) -> Unit) -> Unit
 ) {
     var kind by remember { mutableStateOf(request.kind) }
-    val tenant = remember { TenantFlowState(TenantDraft(unit = request.unit?.ifBlank { null } ?: RentalUnit.GERAL_NAME)) }
+    val tenant = remember { TenantFlowState(TenantDraft(unit = request.unit?.trim().orEmpty())) }
     val unit = remember { UnitFlowState() }
     var confirmDiscard by remember { mutableStateOf(false) }
     val close = { if (tenant.hasAnswers || unit.hasAnswers) confirmDiscard = true else onDismiss() }

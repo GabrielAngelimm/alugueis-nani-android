@@ -34,11 +34,12 @@ internal enum class TenantStep(val title: String, val optional: Boolean = false)
     STATEMENT("Extrato", optional = true), REVIEW("Revisão")
 }
 
-internal enum class TenantField { NAME, AMOUNT, DUE_DAY, PHONE, CPF }
+internal enum class TenantField { NAME, UNIT, AMOUNT, DUE_DAY, PHONE, CPF }
 
 internal data class TenantDraft(
     val name: String = "",
-    val unit: String = RentalUnit.GERAL_NAME,
+    /** Blank until the person picks where the tenant lives, so a hurried "Avançar" never files them under Geral. */
+    val unit: String = "",
     val amount: String = "",
     val dueDay: Int? = null,
     /** Digits only; the field draws the mask. */
@@ -53,7 +54,7 @@ internal data class TenantDraft(
     fun errors(step: TenantStep): Map<TenantField, String> = buildMap {
         when (step) {
             TenantStep.NAME -> if (name.isBlank()) put(TenantField.NAME, "Informe o nome")
-            TenantStep.UNIT -> Unit
+            TenantStep.UNIT -> if (unit.isBlank()) put(TenantField.UNIT, "Escolha a unidade")
             TenantStep.RENT -> {
                 if (!validMoney(amount)) put(TenantField.AMOUNT, "Informe um valor válido")
                 if (dueDay == null || dueDay !in 1..31) put(TenantField.DUE_DAY, "Escolha o dia de vencimento, de 1 a 31")
@@ -136,6 +137,19 @@ internal data class UnitDraft(
     }
 }
 
+/**
+ * The places a new tenant can live in, by name: the registered units that take new tenants, in
+ * order, then the unit the registration was opened from when it has no record, and Geral. A unit
+ * that is inactive or under maintenance is left out, unless it is the one the registration was
+ * opened from.
+ */
+internal fun unitChoices(units: List<RentalUnit>, chosen: String): List<String> {
+    val registered = units.filter { it.acceptsNewTenants || it.name.equals(chosen, ignoreCase = true) }
+        .map { it.name }.sortedBy { it.lowercase() }
+    val names = units.map { it.name.lowercase() }
+    return registered + listOf(chosen, RentalUnit.GERAL_NAME).distinct().filter { it.isNotBlank() && it.lowercase() !in names }
+}
+
 /** Keeps a capacity entry to the digits the full form accepts. */
 internal fun capacityInput(value: String): String? = value.takeIf { it.matches(Regex("^\\d*$")) }?.take(3)
 
@@ -145,7 +159,7 @@ internal fun moneyInput(value: String): String? = value.takeIf { it.matches(Rege
 /** How a tenant's step reads once answered, as the step rule reads it out to assistive technology. */
 internal fun TenantDraft.summary(step: TenantStep): String? = when (step) {
     TenantStep.NAME -> name.trim().ifBlank { null }
-    TenantStep.UNIT -> unit
+    TenantStep.UNIT -> unit.ifBlank { null }
     TenantStep.RENT -> listOfNotNull(amount.takeIf { validMoney(it) }?.let { CurrencyUtils.format(it.replace(',', '.').toDouble()) },
         dueDay?.let { "dia $it" }).joinToString(" · ").ifBlank { null }
     TenantStep.CONTACT -> phone.takeIf { it.isNotBlank() }?.let(::formatPhoneForDB) ?: "Sem telefone"
