@@ -23,6 +23,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.rentalvalidator.app.domain.model.Tenant
+import com.rentalvalidator.app.domain.usecase.AmbiguousCredit
 import com.rentalvalidator.app.domain.usecase.ValidationResult
 import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.components.PrimaryButton
@@ -134,6 +136,46 @@ fun ValidationResultCard(result: ValidationResult, onRegistrar: () -> Unit, onCo
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A credit whose description names more than one tenant equally well, such as two people with the
+ * same name. It counts for nobody until the owner taps the tenant it belongs to; each choice shows
+ * the unit and the rent, which is usually what tells them apart.
+ */
+@Composable
+internal fun AmbiguousCreditCard(credit: AmbiguousCredit, onAssign: (Tenant) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val transaction = credit.transaction
+    Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page, vertical = 5.dp),
+        shape = RoundedCornerShape(AppSize.sheetRadius), color = colors.surface) {
+        Column(Modifier.padding(top = 14.dp, bottom = 6.dp)) {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(transaction.description, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(transaction.date.format(TransactionDate), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                }
+                Text(CurrencyUtils.format(transaction.amount), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+            }
+            Text("O nome combina com mais de um inquilino. De quem é?", Modifier.padding(horizontal = 16.dp).padding(top = 8.dp, bottom = 4.dp),
+                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            credit.candidates.forEachIndexed { i, tenant ->
+                if (i > 0) LedgerRule(Modifier.padding(start = 68.dp))
+                Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Contar para ${tenant.name}") { onAssign(tenant) }
+                    .heightIn(min = 60.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Monogram(tenant.name)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(tenant.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${tenant.unit.ifBlank { "Geral" }} · ${CurrencyUtils.format(tenant.amount)}", style = MaterialTheme.typography.bodySmall,
+                            color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text("Escolher", style = MaterialTheme.typography.labelLarge, color = colors.primary)
                 }
             }
         }

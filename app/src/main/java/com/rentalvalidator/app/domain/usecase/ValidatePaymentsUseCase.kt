@@ -7,6 +7,7 @@ import com.rentalvalidator.app.util.TextNormalizer
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
+import java.util.Collections
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -32,6 +33,21 @@ data class ValidationResult(
     val matchedTransactions: List<Transaction> = emptyList()
 )
 
+/**
+ * A credit whose description names two or more tenants equally well. It counts for nobody until
+ * the owner says whose it is; [index] is its position in the transactions that were checked.
+ */
+data class AmbiguousCredit(
+    val index: Int,
+    val transaction: Transaction,
+    val candidates: List<Tenant>
+)
+
+data class StatementCheck(
+    val results: List<ValidationResult>,
+    val ambiguous: List<AmbiguousCredit> = emptyList()
+)
+
 class ValidatePaymentsUseCase @Inject constructor() {
 
     fun execute(
@@ -41,20 +57,57 @@ class ValidatePaymentsUseCase @Inject constructor() {
         evaluationDate: LocalDate = LocalDate.now(),
         penaltyFeePercentage: Double = 20.0, // Unique fee of 20% for late
         penaltyInterestPerDayPercentage: Double = 0.0 // No daily interest
-    ): List<ValidationResult> {
+    ): List<ValidationResult> = check(tenants, transactions, referencePeriod, evaluationDate,
+        penaltyFeePercentage, penaltyInterestPerDayPercentage).results
+
+    /**
+     * Matches the month's credits to tenants and computes each tenant's result. A credit goes to
+     * at most one tenant: the one whose name or alias appears in its description as whole words,
+     * the most specific such name winning. Equally good names leave the credit [AmbiguousCredit]
+     * until [assignments] (transaction index to tenant id) settles it.
+     */
+    fun check(
+        tenants: List<Tenant>,
+        transactions: List<Transaction>,
+        referencePeriod: YearMonth = YearMonth.now(),
+        evaluationDate: LocalDate = LocalDate.now(),
+        penaltyFeePercentage: Double = 20.0,
+        penaltyInterestPerDayPercentage: Double = 0.0,
+        assignments: Map<Int, String> = emptyMap()
+    ): StatementCheck {
         val results = mutableListOf<ValidationResult>()
 
         val targetMonth = referencePeriod.monthValue
         val targetYear = referencePeriod.year
-        val filteredTransactions = transactions.filter {
-            it.date.monthValue == targetMonth &&
-                it.date.year == targetYear &&
-                it.type == TransactionType.CREDIT &&
-                it.amount > 0.0
+        val credits = transactions.withIndex().filter { (_, credit) ->
+            credit.date.monthValue == targetMonth &&
+                credit.date.year == targetYear &&
+                credit.type == TransactionType.CREDIT &&
+                credit.amount > 0.0
+        }
+
+        val names = tenants.associate { it.id to statementNames(it) }
+        val received = mutableMapOf<String, MutableList<Transaction>>()
+        val ambiguous = mutableListOf<AmbiguousCredit>()
+        for ((index, transaction) in credits) {
+            val owner = assignments[index]?.takeIf { id -> tenants.any { it.id == id } }
+            if (owner != null) {
+                received.getOrPut(owner) { mutableListOf() } += transaction
+                continue
+            }
+            val words = words(transaction.description)
+            val scores = tenants.mapNotNull { tenant ->
+                names.getValue(tenant.id).filter { Collections.indexOfSubList(words, it) >= 0 }
+                    .maxOfOrNull { specificity(it) }?.let { tenant to it }
+            }
+            val best = scores.maxOfOrNull { it.second } ?: continue
+            val winners = scores.filter { it.second == best }.map { it.first }
+            if (winners.size == 1) received.getOrPut(winners.single().id) { mutableListOf() } += transaction
+            else ambiguous += AmbiguousCredit(index, transaction, winners)
         }
 
         for (tenant in tenants) {
-            val matched = findMatchesForTenant(tenant, filteredTransactions)
+            val matched = received[tenant.id].orEmpty()
             val totalPaid = matched.sumOf { it.amount }
 
             val dueDateDay = tenant.dueDay.coerceAtMost(referencePeriod.lengthOfMonth())
@@ -103,31 +156,21 @@ class ValidatePaymentsUseCase @Inject constructor() {
             )
         }
         
-        return results
+        return StatementCheck(results, ambiguous)
     }
 
-    private fun findMatchesForTenant(tenant: Tenant, transactions: List<Transaction>): List<Transaction> {
-        val matched = mutableListOf<Transaction>()
-        
-        val tenantAliases = (tenant.aliases + tenant.name).map { TextNormalizer.normalize(it) }
-            .filter { it.isNotBlank() }
-            .distinct()
+    /** The tenant's name and aliases as word lists; names with no letters or digits match nothing. */
+    private fun statementNames(tenant: Tenant): List<List<String>> =
+        (tenant.aliases + tenant.name).map { words(it) }.filter { it.isNotEmpty() }.distinct()
 
-        for (transaction in transactions) {
-            val normalizedDesc = TextNormalizer.normalize(transaction.description)
-            
-            for (alias in tenantAliases) {
-                if (normalizedDesc.contains(alias)) {
-                    matched.add(transaction)
-                    break // Next transaction if matched
-                }
-            }
-        }
-        
-        return matched
-    }
+    /** More words, then more letters, make a name more specific: "Ana Souza Lima" beats "Ana Souza". */
+    private fun specificity(name: List<String>): Int = name.size * 1_000 + name.sumOf { it.length }
+
+    private fun words(text: String): List<String> =
+        TextNormalizer.normalize(text).split(NON_WORD).filter { it.isNotEmpty() }
 
     private companion object {
         const val PAYMENT_TOLERANCE = 1.0
+        val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
     }
 }

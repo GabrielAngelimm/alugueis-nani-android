@@ -86,8 +86,13 @@ fun ValidatorScreen(viewModel: ValidatorViewModel = hiltViewModel(), onFinanceNa
                             (filterUnit == null || result.tenant.unit == filterUnit) &&
                             (filterDueDay == null || result.tenant.dueDay == filterDueDay)
                     }
+                    // A credit stays on screen while any tenant it could belong to does.
+                    val ambiguous = current.ambiguous.filter { credit ->
+                        credit.candidates.any { candidate -> visible.any { it.tenant.id == candidate.id } }
+                    }
                     ValidationResults(
-                        visible, period, onReset = viewModel::reset,
+                        visible, ambiguous, period, onReset = viewModel::reset,
+                        onAssign = { credit, tenant -> viewModel.assignCredit(credit.index, tenant.id) },
                         onRegister = { tenant, paid -> registerTenant = tenant; defaultStatus = if (paid) StoredPaymentStatus.PAGO else StoredPaymentStatus.PENDENTE },
                         onCharge = { result, includePenalty ->
                             if (result.tenant.phone.isBlank()) showSnackbar("Inquilino sem telefone cadastrado")

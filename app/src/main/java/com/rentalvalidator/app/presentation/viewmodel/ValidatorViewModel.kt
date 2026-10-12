@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rentalvalidator.app.data.local.datastore.PreferencesManager
 import com.rentalvalidator.app.domain.repository.TenantRepository
+import com.rentalvalidator.app.domain.usecase.AmbiguousCredit
 import com.rentalvalidator.app.domain.usecase.ValidatePaymentsUseCase
 import com.rentalvalidator.app.domain.usecase.ValidationResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
@@ -25,7 +27,8 @@ import javax.inject.Inject
 sealed class ValidatorState {
     data class Idle(val selectedUri: Uri? = null, val selectedFileName: String? = null) : ValidatorState()
     object Loading : ValidatorState()
-    data class Success(val results: List<ValidationResult>) : ValidatorState()
+    /** [ambiguous] holds the credits that name more than one tenant and count for nobody until assigned. */
+    data class Success(val results: List<ValidationResult>, val ambiguous: List<AmbiguousCredit> = emptyList()) : ValidatorState()
     data class Error(val message: String) : ValidatorState()
 }
 
@@ -46,6 +49,8 @@ class ValidatorViewModel @Inject constructor(
     private val _referencePeriod = MutableStateFlow(YearMonth.now())
     val referencePeriod: StateFlow<YearMonth> = _referencePeriod.asStateFlow()
     private var validationJob: Job? = null
+    /** Whose each ambiguous credit is, by its index in the checked statement, as the owner settled it. */
+    private val assignments = MutableStateFlow<Map<Int, String>>(emptyMap())
 
     fun updateReferencePeriod(yearMonth: YearMonth) {
         _referencePeriod.value = yearMonth
@@ -66,6 +71,7 @@ class ValidatorViewModel @Inject constructor(
         val uri = currentState?.selectedUri ?: return
         
         validationJob?.cancel()
+        assignments.value = emptyMap()
         _uiState.value = ValidatorState.Loading
         validationJob = viewModelScope.launch {
             try {
@@ -78,18 +84,21 @@ class ValidatorViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Keep the inspected file in memory and refresh its results when a
-                // tenant or penalty setting is edited, without rereading SAF content.
-                combine(tenantRepository.getTenantsFlow(), preferencesManager.penaltyConfigFlow) { tenants, penaltyConfig ->
-                    useCase.execute(
+                // Keep the inspected file in memory and refresh its results when a tenant or
+                // penalty setting is edited, or a credit is assigned, without rereading SAF content.
+                combine(tenantRepository.getTenantsFlow(), preferencesManager.penaltyConfigFlow, assignments) { tenants, penaltyConfig, assigned ->
+                    useCase.check(
                         tenants = tenants,
                         transactions = transactions,
                         referencePeriod = referencePeriod,
                         evaluationDate = LocalDate.now(),
                         penaltyFeePercentage = penaltyConfig.penaltyPct,
-                        penaltyInterestPerDayPercentage = penaltyConfig.dailyInterestPct
-                    ).sortedBy { it.tenant.name }
-                }.collect { results -> _uiState.value = ValidatorState.Success(results) }
+                        penaltyInterestPerDayPercentage = penaltyConfig.dailyInterestPct,
+                        assignments = assigned
+                    )
+                }.collect { check ->
+                    _uiState.value = ValidatorState.Success(check.results.sortedBy { it.tenant.name }, check.ambiguous)
+                }
 
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
@@ -99,6 +108,11 @@ class ValidatorViewModel @Inject constructor(
         }
     }
     
+    /** Counts an ambiguous credit for the tenant the owner picked; the results refresh on their own. */
+    fun assignCredit(index: Int, tenantId: String) {
+        assignments.update { it + (index to tenantId) }
+    }
+
     fun reset() {
         validationJob?.cancel()
         _uiState.value = ValidatorState.Idle()

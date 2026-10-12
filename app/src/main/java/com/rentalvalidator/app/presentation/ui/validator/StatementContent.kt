@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.domain.model.Tenant
+import com.rentalvalidator.app.domain.usecase.AmbiguousCredit
 import com.rentalvalidator.app.domain.usecase.PaymentStatus
 import com.rentalvalidator.app.domain.usecase.ValidationResult
 import com.rentalvalidator.app.presentation.components.PrimaryButton
@@ -152,8 +154,8 @@ internal fun statementStats(results: List<ValidationResult>): List<StatCount> {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun ValidationResults(results: List<ValidationResult>, period: YearMonth, onReset: () -> Unit,
-    onRegister: (Tenant, Boolean) -> Unit, onCharge: (ValidationResult, Boolean) -> Unit) {
+internal fun ValidationResults(results: List<ValidationResult>, ambiguous: List<AmbiguousCredit>, period: YearMonth, onReset: () -> Unit,
+    onAssign: (AmbiguousCredit, Tenant) -> Unit, onRegister: (Tenant, Boolean) -> Unit, onCharge: (ValidationResult, Boolean) -> Unit) {
     val paid = results.count { it.status.isPaid }
     val identified = results.sumOf { it.amountPaid }
     val due = results.sumOf { it.amountDue }
@@ -182,8 +184,16 @@ internal fun ValidationResults(results: List<ValidationResult>, period: YearMont
                 }
             }
         }
+        // Credits that could be more than one person's come first: until they are settled, someone's result is incomplete.
+        if (ambiguous.isNotEmpty()) {
+            item(key = "ambiguous") {
+                SectionTitle("De quem é?", Modifier.padding(top = 12.dp, bottom = 8.dp),
+                    detail = if (ambiguous.size == 1) "1 crédito" else "${ambiguous.size} créditos")
+            }
+            items(ambiguous, key = { "credit-${it.index}" }) { credit -> AmbiguousCreditCard(credit) { tenant -> onAssign(credit, tenant) } }
+        }
         val grouped = results.groupBy { it.tenant.unit.ifBlank { "Geral" } }
-        if (grouped.isEmpty()) {
+        if (grouped.isEmpty() && ambiguous.isEmpty()) {
             item { AppEmptyState(Icons.Rounded.SearchOff, "Nenhum resultado encontrado", "Ajuste a busca ou os filtros para ver outros inquilinos.") }
         }
         grouped.forEach { (unit, unitResults) ->
