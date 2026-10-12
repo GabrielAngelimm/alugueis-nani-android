@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.design.FittingText
 import com.rentalvalidator.app.presentation.design.StatusKind
+import com.rentalvalidator.app.presentation.design.coverRim
 import com.rentalvalidator.app.presentation.design.engravedCover
 import com.rentalvalidator.app.presentation.design.longLabel
 import com.rentalvalidator.app.presentation.design.statusTone
@@ -112,7 +113,8 @@ internal fun YearCard(
     Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).then(lift), shape = shape,
         color = MaterialTheme.colorScheme.surface) {
         Column {
-            Column(Modifier.fillMaxWidth().engravedCover(tenantName, unit = false)
+            // The cover's edge catches the light along the top, as on the tenant's own page.
+            Column(Modifier.fillMaxWidth().engravedCover(tenantName, unit = false).coverRim(AppSize.sheetRadius)
                 .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Recebido no ano", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
