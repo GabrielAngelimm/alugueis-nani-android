@@ -16,6 +16,8 @@ A revisão examinou código de produção e testes, modelos, DAOs, migrações, 
 | Datas | O DatePicker fornece meia-noite UTC; converter para o fuso local podia voltar um dia | Conversão específica em UTC, testada em três fusos |
 | Histórico | Recorte somente por número do mês misturava anos na passagem de dezembro para janeiro | Recorte por ano/mês com dados do ano anterior |
 | Conferência | Nome normalizado vazio correspondia a qualquer descrição | Nomes/aliases vazios são descartados antes do matching |
+| Conferência | Busca por trecho de texto deixava o mesmo crédito contar para dois inquilinos ("Ana Souza" dentro de "Mariana Souza") | Palavras inteiras, um inquilino por crédito e escolha do responsável quando dois nomes empatam |
+| CSV | Ponto decimal era lido como separador de milhar e multiplicava o valor por 100 | O último ponto ou vírgula seguido de 1 ou 2 dígitos é o decimal |
 | Formulários | Algumas telas confirmavam gravação antes do resultado e perdiam erros de persistência | Sucesso após gravação; canais de erro apresentados pela interface |
 | Unidades | Editar os dados podia descartar a referência de fotografia existente | Referência preservada ao editar |
 | Lembretes e preferências | Tipo incorreto ou campos inválidos de configurações podiam falhar; cancelamento era tratado como erro comum | Validação dos registros e propagação correta de cancelamento |
@@ -51,7 +53,6 @@ Componentes de formulários, superfícies, navegação, movimento e tema já sã
 | Prioridade | Evolução | Por que não foi feita nesta revisão |
 | --- | --- | --- |
 | Alta para contabilidade histórica | Persistir valor pago, data, origem e identificação de cada recebimento | Muda o produto, schema, backups e interpretação dos gráficos; exige decisão de domínio |
-| Alta para conferência automatizada | Desambiguar matching e impedir atribuição do mesmo crédito a moradores diferentes | Substring/aliases fazem parte do comportamento atual; uma regra nova precisa de exemplos e critérios do responsável |
 | Alta para distribuição real | Definir assinatura, política de backup/proteção de dados e atualizar target SDK conforme a distribuição | Publicar código de portfólio não define essas decisões nem fornece uma chave de produção |
 | Média | Representar dinheiro por centavos/decimal | Requer estratégia de arredondamento e migração, não apenas troca de um tipo Kotlin |
 | Média | Foreign key de `unitId` e consistência entre importações/mutações concorrentes | Precisa de migração de dados históricos e tratamento de referências inválidas |

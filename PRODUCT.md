@@ -16,7 +16,7 @@ Os dados são locais. O aplicativo não envia mensagens, não processa pagamento
 
 ## Regras preservadas
 
-A conferência considera créditos positivos do mês selecionado e relaciona descrições aos nomes ou aliases normalizados. Um nome sem conteúdo normalizado não pode corresponder a todos os créditos. O resultado pode ser pago, parcial ou pendente, com a tolerância monetária existente de menos de R$ 1,00.
+A conferência considera créditos positivos do mês selecionado e relaciona descrições aos nomes ou aliases normalizados, comparando palavras inteiras: "Ana Souza" não corresponde a "Mariana Souza". Cada crédito conta para no máximo um inquilino, o do nome mais específico; quando dois nomes servem igualmente bem, o crédito não conta para ninguém até o responsável escolher de quem é. Um nome sem conteúdo normalizado não pode corresponder a todos os créditos. Valores do CSV podem usar vírgula ou ponto como separador decimal. O resultado pode ser pago, parcial ou pendente, com a tolerância monetária existente de menos de R$ 1,00.
 
 As regras opcionais de atraso continuam configuráveis. O vencimento se ajusta ao último dia quando o mês não possui o dia cadastrado. A identidade de um pagamento é a combinação de morador, ano e mês.
 
