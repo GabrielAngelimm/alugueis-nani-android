@@ -78,9 +78,10 @@ data class NaniColors(
 }
 
 /**
- * A cover's material: the ground runs from [lit] through [mid] to [deep] across the diagonal, a
- * soft [glow] of light falls from the upper-right corner and a [bounce] of a neighbouring hue
- * rises from the lower left, for depth. [glow] and [bounce] carry their own strength as alpha.
+ * A cover's material: the ground runs from [mid] to [deep] across the diagonal, a [glow] of a
+ * brighter neighbouring hue blooms from the upper-right corner like the light, and a [bounce] of
+ * a second hue rises softly from below, for depth. [glow] and [bounce] carry their own strength
+ * as alpha. [lit] is the cover's lightest tone, for the faint wash a quiet cover leaves.
  */
 @Immutable
 data class CoverTone(val lit: Color, val mid: Color, val deep: Color, val glow: Color, val bounce: Color)
@@ -98,9 +99,9 @@ internal val LightNaniColors = NaniColors(
     plaque = Color(0xFF233886),
     onPlaque = Color(0xFFF4F6FF),
     tenantCover = CoverTone(Color(0xFF5B74DA), Color(0xFF3B54B6), Color(0xFF243A8C),
-        glow = Color(0x6B9DB0F5), bounce = Color(0x4D5E3FB8)),
+        glow = Color(0xE67F98F4), bounce = Color(0x997458D4)),
     unitCover = CoverTone(Color(0xFF3F8597), Color(0xFF2A6375), Color(0xFF173F4F),
-        glow = Color(0x6186C3CF), bounce = Color(0x4D1F4C7E)),
+        glow = Color(0xE663AEBB), bounce = Color(0x992C7C70)),
     unitMark = Color(0xFFDDEEF1) to Color(0xFF173F4F),
     action = Pen,
     onAction = Color.White,
@@ -126,9 +127,9 @@ internal val DarkNaniColors = NaniColors(
     plaque = Color(0xFF3A50A8),
     onPlaque = Color(0xFFF4F6FF),
     tenantCover = CoverTone(Color(0xFF4660C8), Color(0xFF2D429C), Color(0xFF172462),
-        glow = Color(0x4D8196EA), bounce = Color(0x5752309E)),
+        glow = Color(0xE65E78DE), bounce = Color(0x995139A8)),
     unitCover = CoverTone(Color(0xFF326E80), Color(0xFF1F5263), Color(0xFF0F2E3B),
-        glow = Color(0x476FAFBD), bounce = Color(0x57163E6A)),
+        glow = Color(0xE64A8F9D), bounce = Color(0x991E5E55)),
     unitMark = Color(0xFF0C2530) to Color(0xFFA9CFD7),
     action = Color(0xFF4460D6),
     onAction = Color.White,

@@ -55,11 +55,11 @@ enum class DetailIdentity { TENANT, UNIT }
 
 /**
  * The head of a detail page as one card. Its cover holds who or what the page is about: the
- * mark, the name and the line under it, on a lit material ([engravedCover]) with the record's
- * mark pressed into it: sapphire and the person's initials for a tenant, petrol blue and the
- * kind of property for a unit, so a place and a person never look alike. Below the cover, the two
- * numbers that define the record share one line with a divider; when either is too wide for its
- * half, both are set smaller by the same amount, so they stay level.
+ * mark, the name and the line under it, on a lit material ([engravedCover]): sapphire and the
+ * person's initials for a tenant, petrol blue and the kind of property for a unit, so a place and
+ * a person never look alike. Below the cover, the two numbers that define the record share one
+ * line with a divider; when either is too wide for its half, both are set smaller by the same
+ * amount, so they stay level.
  */
 @Composable
 fun NaniDetailHero(
@@ -83,7 +83,7 @@ fun NaniDetailHero(
     Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(top = 4.dp, bottom = 24.dp).then(lift),
         shape = shape, color = MaterialTheme.colorScheme.surface) {
         Column {
-            HeroCover(seed = title, unit = unit, glyph = if (unit) unitIcon else null) {
+            HeroCover(seed = title, unit = unit) {
                 CoverMark { if (unit) UnitDisc(title, unitIcon) else Monogram(title, size = CoverDisc) }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     HeroTitle(title, nani.onPlaque)
@@ -129,8 +129,8 @@ private fun HeroTitle(title: String, color: Color) {
 
 /** The cover of the card, its edge catching the light along the top. */
 @Composable
-private fun HeroCover(seed: String, unit: Boolean, glyph: ImageVector?, content: @Composable RowScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).engravedCover(seed, unit, relief = true, glyph = glyph)
+private fun HeroCover(seed: String, unit: Boolean, content: @Composable RowScope.() -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).engravedCover(seed, unit)
         .coverRim(AppSize.sheetRadius).padding(20.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), content = content)
 }
