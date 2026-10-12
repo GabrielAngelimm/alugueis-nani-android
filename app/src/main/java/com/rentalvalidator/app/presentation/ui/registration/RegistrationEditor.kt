@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -47,11 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -62,6 +59,7 @@ import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.design.DialogText
 import com.rentalvalidator.app.presentation.design.NaniConfirmDialog
 import com.rentalvalidator.app.presentation.design.NaniEditor
+import com.rentalvalidator.app.presentation.design.engravedCover
 import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.AppSpace
 import com.rentalvalidator.app.presentation.theme.NaniTheme
@@ -172,8 +170,9 @@ private fun RegistrationChooser(hasUnits: Boolean, onClose: () -> Unit, onChoose
 }
 
 /**
- * A kind of record as a small passbook: a strip of the cover that opens its detail page (blue for a
- * person, steel for a [unit]), with the kind's glyph lit on it, beside what the registration asks.
+ * A kind of record as a small card: a strip of the cover that opens its detail page (sapphire for
+ * a person, petrol blue for a [unit]), with the kind's glyph lit on it, beside what the
+ * registration asks.
  */
 @Composable
 private fun KindCard(title: String, description: String, glyph: ImageVector, unit: Boolean, onClick: () -> Unit) {
@@ -183,19 +182,16 @@ private fun KindCard(title: String, description: String, glyph: ImageVector, uni
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .98f else 1f, AppMotion.PressScale, label = "kind press")
-    val (lit, deep) = if (unit) nani.unitCoverStart to nani.unitCoverEnd else nani.coverStart to nani.coverEnd
+    val deep = if (unit) nani.unitCoverEnd else nani.coverEnd
     val lift = if (nani.isDark) Modifier else Modifier.shadow(10.dp, shape, ambientColor = deep.copy(alpha = .12f),
         spotColor = deep.copy(alpha = .22f))
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale }.then(lift),
         shape = shape, color = colors.surface, interactionSource = interaction) {
         Row(Modifier.height(IntrinsicSize.Min).heightIn(min = 116.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(96.dp).fillMaxHeight().drawBehind {
-                drawRect(Brush.linearGradient(listOf(lit, deep), start = Offset(size.width, 0f),
-                    end = Offset(0f, size.height)))
-                drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = .14f), Color.Transparent),
-                    center = Offset(size.width, 0f), radius = size.height))
-            }.clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-                Box(Modifier.size(58.dp).clip(CircleShape).background(nani.onPlaque.copy(alpha = .16f)).padding(3.dp)
+            Box(Modifier.width(96.dp).fillMaxHeight().engravedCover(title, unit).clearAndSetSemantics { },
+                contentAlignment = Alignment.Center) {
+                Box(Modifier.size(58.dp).clip(CircleShape).background(nani.onPlaque.copy(alpha = .14f))
+                    .border(1.dp, nani.onPlaque.copy(alpha = .22f), CircleShape).padding(3.dp)
                     .clip(CircleShape).background(nani.onPlaque.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
                     Icon(glyph, null, Modifier.size(28.dp), tint = nani.onPlaque)
                 }

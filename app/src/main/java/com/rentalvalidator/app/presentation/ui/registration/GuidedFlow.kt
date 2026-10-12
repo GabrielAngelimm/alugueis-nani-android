@@ -182,8 +182,9 @@ private val PreviewName = TextStyle(fontFamily = NaniSerif, fontWeight = FontWei
 /**
  * The record taking shape above the questions, the way a payment app draws the card being added:
  * a blank card outlined in pencil, with the [placeholder] and [linePlaceholder] in grey, until the
- * record has a [name]; then a calm card on the page, faintly engraved from [seed] (ruled courses
- * for a [unit]), filling in answer by answer in [line], on a second line when it needs one. [mark]
+ * record has a [name]; then a calm card on the page, lit faintly from the corner in the cover's
+ * color (sapphire for a person, petrol blue for a [unit]), filling in answer by answer in [line],
+ * on a second line when it needs one. [seed] names the record for its cover. [mark]
  * draws the disc on the left. The full cover waits for the review, so the questions stay the
  * loudest thing on screen.
  */
