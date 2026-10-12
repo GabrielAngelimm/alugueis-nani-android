@@ -66,6 +66,7 @@ Inquilino e unidade abrem com um único cartão. O topo é uma capa azul, como a
 | `NaniTextField`, `NaniDropdownField` | `components/Fields.kt` | Campos: caixa preenchida apoiada na pauta |
 | `AppNavigation`, `AppNavigationRail` | `components/AppNavigation.kt` | Cápsula flutuante com lente deslizante; trilho lateral em telas largas |
 | `GuidedFlow`, `FlowPreview`, `StepPage`, `ReviewPage`, `FlowFooter`, `DueDayPicker`, `CoverChoices`, `BankChoices`, `CountStepper`, `ReviewLine` | `ui/registration/` | Cadastro guiado: régua de etapas, prévia viva do registro, perguntas, escolhas visuais e revisão; as regras de cada etapa ficam em `RegistrationDrafts.kt` e são testadas em `RegistrationDraftsTest` |
+| `TenantPaymentsContent`, `YearCard`, `MonthGlyph`, `MonthSlip`, `SlipShape` | `ui/tenant_payments/` | Pagamentos de um inquilino: cartão do ano com a capa gravada e a fileira de meses, e o cupom do mês, que desliza entre meses e anos; as regras (`monthState`, `monthRange`, `yearSummary`) ficam em `PaymentYear.kt` e são testadas em `PaymentYearTest` |
 
 Raios seguem a hierarquia: marcas 6dp, controles 14dp, folhas 20dp, painéis e diálogos 28dp. O espaçamento usa múltiplos de 4dp, margem lateral de 20dp e 32dp entre seções.
 
@@ -94,6 +95,14 @@ Abaixo da régua fica a prévia do registro, como o cartão que se desenha ao ad
 Avançar só valida a etapa da tela, com o erro junto ao campo e o foco nele; Voltar, inclusive o do sistema, recua uma pergunta sem perder nada. A revisão repete a capa da página de detalhe com o que será salvo e lista cada resposta, que abre a etapa para correção e volta direto à revisão. Fechar com respostas pede confirmação. Erros ao salvar aparecem na própria revisão, e a confirmação de uma unidade nova oferece cadastrar o primeiro inquilino nela.
 
 Campos, validações e o registro gravado são os mesmos dos formulários completos, que continuam sendo usados para editar, com uma diferença: no cadastro guiado o telefone é obrigatório (nome no WhatsApp e CPF continuam opcionais). A edição ainda aceita telefone vazio, para não travar registros antigos.
+
+## Pagamentos do inquilino
+
+A página abre com um único cartão do ano. O topo é a mesma capa gravada do inquilino, com "Recebido no ano" e o valor em destaque, quantos meses já vencidos foram pagos ("7 de 10 meses pagos até agora") e uma pílula com o que mais importa no ano: meses em atraso com o valor em aberto, pagamento em análise, meses sem registro ou "Tudo em dia". No canto, uma cápsula troca o ano. Abaixo da capa, no mesmo cartão, os doze meses formam uma fileira que desliza para os lados, como as abas de mês de uma fatura de cartão: cada mês leva uma marca pequena na forma do seu estado (selo cheio para pago, disco marca-texto para o que está aberto, anel tracejado para análise, anel sólido para atraso, anel vazio para o que ainda vai chegar e um traço onde não há registro). O mês escolhido fica em caneta e o atual leva um ponto. As pontas da fileira esmaecem enquanto houver meses além delas.
+
+Sob o cartão, o mês escolhido aparece como o cupom de um carnê: mês, vencimento, a marca do estado e o aluguel acima de um picote; abaixo dele, uma frase curta com o que o mês pede ("Venceu há 2 dias.") e as ações. Os cupons deslizam de mês em mês e atravessam os anos; os vizinhos aparecem nas bordas para mostrar que dá para deslizar, e a fileira e o ano acompanham. Cada mês tem uma só ação forte, a que ele pede: "Marcar como pago" (ou "Confirmar pagamento" quando está em análise), que vibra, carimba o cupom e oferece "Desfazer". Meses futuros ou anteriores ao cadastro ainda podem ser pagos, com o botão discreto. "Mudar situação" abre o mesmo painel de antes, para qualquer mês ir para qualquer estado. Com telefone cadastrado, um mês aberto oferece "Cobrar" e um mês pago oferece "Confirmar no WhatsApp", com uma mensagem de recebimento. Os cupons lado a lado têm sempre a mesma altura.
+
+Um mês passado sem registro aparece como "Sem registro", nunca como atraso, porque o app pode não ter sido usado naquele mês; só o mês atual, ou um mês gravado como pendente, entra em atraso. Os valores seguem o aluguel atual, já que um pagamento não guarda valor próprio, e uma nota no fim da página diz isso.
 
 ## Manutenção
 

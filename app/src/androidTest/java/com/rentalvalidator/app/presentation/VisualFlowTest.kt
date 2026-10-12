@@ -34,6 +34,9 @@ import com.rentalvalidator.app.presentation.ui.dashboard.DashboardScreen
 import com.rentalvalidator.app.presentation.ui.tenants.TenantsScreen
 import com.rentalvalidator.app.presentation.ui.contracts.ContractsScreen
 import com.rentalvalidator.app.presentation.ui.monthly_grid.*
+import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsScreen
+import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsViewModel
+import com.rentalvalidator.app.presentation.design.longLabel
 import com.rentalvalidator.app.presentation.ui.validator.ValidatorScreen
 import com.rentalvalidator.app.presentation.ui.settings.SettingsScreen
 import com.rentalvalidator.app.presentation.viewmodel.*
@@ -48,6 +51,7 @@ import androidx.lifecycle.viewModelScope
 import org.junit.*
 import java.io.File
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 /** Exercises production screens with real repositories and an isolated in-memory Room database.
@@ -61,6 +65,8 @@ class VisualFlowTest {
     private lateinit var units: UnitsViewModel
     private lateinit var contracts: ContractsViewModel
     private lateinit var grid: MonthlyGridViewModel
+    private lateinit var tenantPayments: TenantPaymentsViewModel
+    private lateinit var paymentRepository: PaymentRepositoryImpl
     private lateinit var validator: ValidatorViewModel
     private lateinit var settings: SettingsViewModel
     private lateinit var reminderVm: RentReminderViewModel
@@ -95,6 +101,8 @@ class VisualFlowTest {
         units = UnitsViewModel(ur)
         contracts = ContractsViewModel(tr, com.rentalvalidator.app.data.files.DocumentStorage(context))
         grid = MonthlyGridViewModel(tr, pr)
+        tenantPayments = TenantPaymentsViewModel(tr, pr)
+        paymentRepository = pr
         validator = ValidatorViewModel(ValidatePaymentsUseCase(), tr, pr, prefs, com.rentalvalidator.app.data.importer.StatementReader(context))
         reminderPrefsName = "visual-flow-reminder-" + java.util.UUID.randomUUID()
         val isolatedReminders = object : android.content.ContextWrapper(context) {
@@ -109,7 +117,7 @@ class VisualFlowTest {
     }
 
     @After fun close() {
-        val scopes = listOf(tenants, units, contracts, grid, validator, settings, reminderVm).map { it.viewModelScope }
+        val scopes = listOf(tenants, units, contracts, grid, tenantPayments, validator, settings, reminderVm).map { it.viewModelScope }
         compose.runOnIdle { scopes.forEach { it.cancel() } }
         runBlocking { scopes.forEach { it.coroutineContext[Job]?.join() } }
         runBlocking { listOf("visual-0", "visual-1", "visual-2").forEach { reminderScheduler.remove(it) } }
@@ -138,7 +146,7 @@ class VisualFlowTest {
                                     "tenants" -> TenantsScreen(tenants, units, {}, {}, { route.value = "grid" },
                                         onNavigateToTenantPayments = { scopedTenant.value=it;route.value="tenant-payments" },
                                         reminderViewModel = reminderVm)
-                                    "tenant-payments" -> MonthlyGridScreen(grid,tenantId=scopedTenant.value,onBack={route.value="tenants"})
+                                    "tenant-payments" -> TenantPaymentsScreen(scopedTenant.value!!, onBack = { route.value = "tenants" }, viewModel = tenantPayments)
                                     "grid" -> MonthlyGridScreen(grid){route.value=it.route}
                                     "contracts" -> ContractsScreen(contracts, units)
                                     "validator" -> ValidatorScreen(validator){route.value=it.route}
@@ -392,10 +400,11 @@ class VisualFlowTest {
         compose.onNode(hasText("Marina Oliveira") and hasClickAction()).assertDoesNotExist()
         shot("dashboard-open-rents")
         compose.onNode(hasText("Rafael Mendes") and hasClickAction()).performClick()
-        compose.waitUntil(10_000) { route.value == "tenant-payments" && grid.state.value.items.size == 3 }
+        compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-1" }
         Assert.assertEquals("visual-1", scopedTenant.value)
         compose.onNodeWithText("Ana Beatriz de Albuquerque").assertDoesNotExist()
-        compose.onNodeWithText("Pagamentos em ${java.time.LocalDate.now().year}").assertIsDisplayed()
+        compose.onNodeWithText("Recebido no ano").assertIsDisplayed()
+        compose.onNodeWithText(YearMonth.now().longLabel()).assertIsDisplayed()
         shot("dashboard-open-rent-scoped-payments")
     }
 
@@ -406,17 +415,48 @@ class VisualFlowTest {
         compose.onNodeWithText("Inquilinos").performClick()
         compose.onNodeWithText("Marina Oliveira").performClick()
         compose.onNodeWithText("Pagamentos").performClick()
-        compose.waitUntil(10_000) { route.value == "tenant-payments" && grid.state.value.items.size == 3 }
+        compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-0" }
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
         compose.onNodeWithText("Ana Beatriz de Albuquerque").assertDoesNotExist()
         shot("tenant-payments-scoped")
-        compose.onNodeWithContentDescription("Mês anterior").performClick()
+        // Sliding the coupon back reaches last month, across the turn of the year when needed.
+        val previous = YearMonth.now().minusMonths(1)
+        compose.onNodeWithText(YearMonth.now().longLabel()).performTouchInput { swipeRight() }
         compose.waitForIdle()
+        compose.onNodeWithText(previous.longLabel()).assertIsDisplayed()
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
-        compose.onAllNodesWithText("Marina Oliveira").onLast().performClick()
+        onScreen("Mudar situação").performClick()
         compose.onNodeWithText("Em análise").performClick()
-        compose.waitUntil(10_000) { grid.state.value.items.single { it.tenant.id=="visual-0" }.payment?.status==PaymentStatus.EM_ANALISE }
-        Assert.assertNull(grid.state.value.items.single { it.tenant.id=="visual-1" }.payment)
+        compose.waitUntil(10_000) { tenantPayments.state.value.statuses[previous] == PaymentStatus.EM_ANALISE }
+        runBlocking {
+            Assert.assertEquals(PaymentStatus.EM_ANALISE, paymentRepository.getPayment("visual-0", previous.year, previous.monthValue)?.status)
+            Assert.assertNull(paymentRepository.getPayment("visual-1", previous.year, previous.monthValue))
+        }
+    }
+
+    @Test fun tenantPaymentsMarkAMonthPaidAndUndoIt() {
+        route.value = "tenants"
+        launch()
+        compose.waitUntil(10_000) { tenants.tenants.value.size == 3 }
+        compose.onNodeWithText("Inquilinos").performClick()
+        compose.onNodeWithText("Rafael Mendes").performClick()
+        compose.onNodeWithText("Pagamentos").performClick()
+        compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-1" }
+        val month = YearMonth.now()
+        onScreen("Marcar como pago").performClick()
+        compose.waitUntil(10_000) { tenantPayments.state.value.statuses[month] == PaymentStatus.PAGO }
+        compose.onNodeWithText("Desfazer").performClick()
+        compose.waitUntil(10_000) { tenantPayments.state.value.statuses[month] == null }
+        runBlocking { Assert.assertNull(paymentRepository.getPayment("visual-1", month.year, month.monthValue)) }
+    }
+
+    /** The one node with [text] that lies wholly on screen: the coupons beside the current one carry the same buttons. */
+    private fun onScreen(text: String): SemanticsNodeInteraction {
+        val width = compose.onRoot().fetchSemanticsNode().size.width
+        val nodes = compose.onAllNodesWithText(text).fetchSemanticsNodes()
+        val index = nodes.indexOfFirst { it.boundsInRoot.left >= 0f && it.boundsInRoot.right <= width }
+        Assert.assertTrue("No \"$text\" on screen", index >= 0)
+        return compose.onAllNodesWithText(text)[index]
     }
 
     @Test fun tenantContactOffersWhatsAppAndDialer() {
