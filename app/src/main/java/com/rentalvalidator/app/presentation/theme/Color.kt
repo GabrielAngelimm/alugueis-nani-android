@@ -81,7 +81,7 @@ data class NaniColors(
  * A cover's material: the ground runs from [mid] to [deep] across the diagonal, a [glow] of a
  * brighter neighbouring hue blooms from the upper-right corner like the light, and a [bounce] of
  * a second hue rises softly from below, for depth. [glow] and [bounce] carry their own strength
- * as alpha. [lit] is the cover's lightest tone, for the faint wash a quiet cover leaves.
+ * as alpha. [lit] is the cover's lightest tone, for borders and washes that echo the cover.
  */
 @Immutable
 data class CoverTone(val lit: Color, val mid: Color, val deep: Color, val glow: Color, val bounce: Color)
