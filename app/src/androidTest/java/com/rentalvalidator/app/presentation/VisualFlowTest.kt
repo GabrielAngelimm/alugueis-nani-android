@@ -415,7 +415,7 @@ class VisualFlowTest {
         compose.onNodeWithText("Inquilinos").performClick()
         compose.onNodeWithText("Marina Oliveira").performClick()
         compose.onNodeWithText("Pagamentos").performClick()
-        compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-0" }
+        awaitPayments("opening Marina's payments") { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-0" }
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
         compose.onNodeWithText("Ana Beatriz de Albuquerque").assertDoesNotExist()
         shot("tenant-payments-scoped")
@@ -426,8 +426,8 @@ class VisualFlowTest {
         compose.onNodeWithText(previous.longLabel()).assertIsDisplayed()
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
         onScreen("Mudar situação").performSemanticsAction(SemanticsActions.OnClick)
-        compose.onNodeWithText("Em análise").performClick()
-        compose.waitUntil(10_000) { tenantPayments.state.value.statuses[previous] == PaymentStatus.EM_ANALISE }
+        compose.onNode(hasText("Em análise") and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        awaitPayments("setting $previous under review") { tenantPayments.state.value.statuses[previous] == PaymentStatus.EM_ANALISE }
         runBlocking {
             Assert.assertEquals(PaymentStatus.EM_ANALISE, paymentRepository.getPayment("visual-0", previous.year, previous.monthValue)?.status)
             Assert.assertNull(paymentRepository.getPayment("visual-1", previous.year, previous.monthValue))
@@ -435,19 +435,28 @@ class VisualFlowTest {
     }
 
     @Test fun tenantPaymentsMarkAMonthPaidAndUndoIt() {
-        route.value = "tenants"
+        // Opened straight on Rafael's page: reaching it from the list is covered above.
+        scopedTenant.value = "visual-1"
+        route.value = "tenant-payments"
         launch()
-        compose.waitUntil(10_000) { tenants.tenants.value.size == 3 }
-        compose.onNodeWithText("Inquilinos").performClick()
-        compose.onNodeWithText("Rafael Mendes").performClick()
-        compose.onNodeWithText("Pagamentos").performClick()
-        compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-1" }
+        awaitPayments("opening Rafael's payments") { tenantPayments.state.value.tenant?.id == "visual-1" }
         val month = YearMonth.now()
         onScreen("Marcar como pago").performSemanticsAction(SemanticsActions.OnClick)
-        compose.waitUntil(10_000) { tenantPayments.state.value.statuses[month] == PaymentStatus.PAGO }
-        compose.onNodeWithText("Desfazer").performClick()
-        compose.waitUntil(10_000) { tenantPayments.state.value.statuses[month] == null }
+        awaitPayments("marking $month paid") { tenantPayments.state.value.statuses[month] == PaymentStatus.PAGO }
+        compose.onNode(hasText("Desfazer") and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        awaitPayments("undoing $month") { tenantPayments.state.value.statuses[month] == null }
         runBlocking { Assert.assertNull(paymentRepository.getPayment("visual-1", month.year, month.monthValue)) }
+    }
+
+    /** Waits for the payments page to reach [condition]; a timeout reports where the page stood, on one line. */
+    private fun awaitPayments(step: String, condition: () -> Boolean) {
+        try {
+            compose.waitUntil(10_000, condition)
+        } catch (timeout: ComposeTimeoutException) {
+            val state = tenantPayments.state.value
+            throw AssertionError("$step: route=${route.value} tenant=${state.tenant?.id} loading=${state.isLoading} " +
+                "error=${state.error} statuses=${state.statuses}", timeout)
+        }
     }
 
     /**
