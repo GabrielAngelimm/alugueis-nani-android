@@ -32,6 +32,17 @@ class StatementParsingTest {
         assertEquals(TransactionType.DEBIT, entries[1].type)
     }
 
+    @Test fun csvWithDotDecimalsKeepsTheAmounts() {
+        val input = "Data,Valor,Identificador,Descrição\n05/10/2026,1450.00,a1,Transferência recebida pelo Pix - LIVIA RAMOS\n" +
+            "06/10/2026,-89.90,a2,Compra no débito"
+        val entries = CsvParser.parse(input.byteInputStream(), 2026)
+        assertEquals(2, entries.size)
+        assertEquals(1450.0, entries[0].amount, 0.0)
+        assertEquals(TransactionType.CREDIT, entries[0].type)
+        assertEquals(-89.9, entries[1].amount, 0.0)
+        assertEquals(TransactionType.DEBIT, entries[1].type)
+    }
+
     @Test fun unrelatedPdfTextDoesNotProduceTransactions() {
         assertTrue(PdfTransactionExtractor.extract("Saldo e informações cadastrais", 2026).isEmpty())
     }

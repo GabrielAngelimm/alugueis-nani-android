@@ -26,7 +26,7 @@ class FontScaleLockTest {
             .putExtra(RentReminderScheduler.EXTRA_PERIOD, "2028-02")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Fevereiro 2028").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("fevereiro de 2028", substring = true).fetchSemanticsNodes().isNotEmpty() }
             scenario.onActivity { activity ->
                 Assert.assertEquals(1f, activity.resources.configuration.fontScale, 0f)
                 Assert.assertEquals("pt", activity.resources.configuration.locales[0].language)

@@ -19,12 +19,16 @@ class ReminderNavigationTest {
             .putExtra(RentReminderScheduler.EXTRA_TENANT, id)
             .putExtra(RentReminderScheduler.EXTRA_PERIOD, period)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        // The activity can report itself resumed, or take a new intent, a moment before its compose root is
+        // attached; until then a lookup throws instead of finding nothing, so it counts as not there yet.
+        fun shows(text: String) = runCatching { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
+            .getOrDefault(false)
         ActivityScenario.launch<MainActivity>(intent("missing-reminder-fixture", "2028-02")).use {
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Fevereiro 2028").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10_000) { shows("fevereiro de 2028") }
             compose.onNodeWithText("Pagamentos").assertIsDisplayed()
             compose.onNodeWithText("Nenhum pagamento encontrado").assertIsDisplayed()
             context.startActivity(intent("another-missing-fixture", "2028-03"))
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Março 2028").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10_000) { shows("março de 2028") }
             compose.onNodeWithText("Nenhum pagamento encontrado").assertIsDisplayed()
         }
     }

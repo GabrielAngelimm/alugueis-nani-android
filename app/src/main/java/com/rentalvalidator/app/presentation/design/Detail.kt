@@ -29,14 +29,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -55,18 +49,16 @@ import com.rentalvalidator.app.presentation.theme.AppSpace
 import com.rentalvalidator.app.presentation.theme.NaniSerifText
 import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 enum class DetailIdentity { TENANT, UNIT }
 
 /**
  * The head of a detail page as one card. Its cover holds who or what the page is about: the
- * mark, the name and the line under it, set on passbook blue with a guilloché engraved from the
- * name. A unit's cover leans toward steel and is ruled instead of ringed, so a place and a person
- * never look alike. Below the cover, the two numbers that define the record share one line with a
- * divider; when either is too wide for its half, both are set smaller by the same amount, so they stay level.
+ * mark, the name and the line under it, on a lit material ([engravedCover]): sapphire and the
+ * person's initials for a tenant, petrol blue and the kind of property for a unit, so a place and
+ * a person never look alike. Below the cover, the two numbers that define the record share one
+ * line with a divider; when either is too wide for its half, both are set smaller by the same
+ * amount, so they stay level.
  */
 @Composable
 fun NaniDetailHero(
@@ -84,9 +76,9 @@ fun NaniDetailHero(
     val unit = identity == DetailIdentity.UNIT
     val deep = if (unit) nani.unitCoverEnd else nani.coverEnd
     val shape = RoundedCornerShape(AppSize.sheetRadius)
-    // By day the card lifts off the paper on a shadow tinted with the cover; at night the cover's glow is enough.
-    val lift = if (nani.isDark) Modifier else Modifier.shadow(14.dp, shape, ambientColor = deep.copy(alpha = .16f),
-        spotColor = deep.copy(alpha = .3f))
+    // By day the card lifts off the paper on a shadow tinted with the cover; at night the cover's own light is enough.
+    val lift = if (nani.isDark) Modifier else Modifier.shadow(16.dp, shape, ambientColor = deep.copy(alpha = .18f),
+        spotColor = deep.copy(alpha = .34f))
     Surface(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(top = 4.dp, bottom = 24.dp).then(lift),
         shape = shape, color = MaterialTheme.colorScheme.surface) {
         Column {
@@ -134,91 +126,21 @@ private fun HeroTitle(title: String, color: Color) {
     }
 }
 
-/**
- * Passbook blue lit from the upper right. A tenant's cover is engraved with fine rings that ripple
- * out from the light; a unit's is a shade toward steel and ruled with fine courses across it.
- */
+/** The cover of the card, its edge catching the light along the top. */
 @Composable
 private fun HeroCover(seed: String, unit: Boolean, content: @Composable RowScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).engravedCover(seed, unit).padding(20.dp),
+    Row(Modifier.fillMaxWidth().heightIn(min = 132.dp).engravedCover(seed, unit)
+        .coverRim(AppSize.sheetRadius).padding(20.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), content = content)
-}
-
-/**
- * Paints a cover behind what it holds, at any size: passbook blue lit from the upper right and
- * engraved from [seed], with rings for a person or, for a place ([unit]), courses on a shade
- * toward steel. [reveal] fades the whole cover in, for a card that becomes a cover when chosen; it
- * is read while drawing, so the fade never recomposes. A [quiet] cover keeps only the engraving,
- * in a faint wash of the cover's color over whatever the card is, for a card that should sit
- * calmly in the page. The engraving runs past the edges by design, so the cover clips to its
- * bounds; a caller clips it to a shape before.
- */
-@Composable
-internal fun Modifier.engravedCover(seed: String, unit: Boolean, reveal: () -> Float = { 1f }, quiet: Boolean = false): Modifier {
-    val nani = NaniTheme.colors
-    val engraving = remember(seed) { engravingOf(seed) }
-    return clipToBounds().drawWithCache {
-        val width = size.width
-        val height = size.height
-        val lines = if (unit) {
-            // Courses are only drawn where there is ink, from a quarter of the way in to the right edge.
-            val xs = List(121) { width * (EngravingInkFrom + it * (1f - EngravingInkFrom) / 120) }
-            List(engravingCourses(width, height)) { index ->
-                Path().apply {
-                    xs.forEachIndexed { step, x ->
-                        val y = engraving.courseY(index, x, width, height)
-                        if (step == 0) moveTo(x, y) else lineTo(x, y)
-                    }
-                }
-            }
-        } else {
-            val center = Offset(width * EngravingCenterX, height * EngravingCenterY)
-            // From a little before straight down to a little past straight left: the quarter that covers the cover.
-            val angles = List(141) { (.47f + it * .004f) * PI.toFloat() }
-            List(EngravingRings) { index ->
-                Path().apply {
-                    angles.forEachIndexed { step, angle ->
-                        val radius = engraving.ringRadius(index, angle, width, height)
-                        val x = center.x + radius * cos(angle)
-                        val y = center.y + radius * sin(angle)
-                        if (step == 0) moveTo(x, y) else lineTo(x, y)
-                    }
-                }
-            }
-        }
-        val ground = Brush.linearGradient(if (unit) listOf(nani.unitCoverStart, nani.unitCoverEnd) else listOf(nani.coverStart, nani.coverEnd),
-            start = Offset(width, 0f), end = Offset(0f, height))
-        val glow = Brush.radialGradient(listOf(Color.White.copy(alpha = .12f), Color.Transparent),
-            center = Offset(width * .94f, -height * .15f), radius = height * 1.4f)
-        // The engraving fades out toward the left, so the mark and the start of the name sit on clear blue.
-        val tone = when {
-            !quiet -> nani.onPlaque.copy(alpha = .14f)
-            unit -> nani.unitCoverStart.copy(alpha = if (nani.isDark) .34f else .2f)
-            else -> nani.coverStart.copy(alpha = if (nani.isDark) .34f else .18f)
-        }
-        val ink = Brush.horizontalGradient(0f to Color.Transparent, EngravingInkFrom to Color.Transparent, .65f to tone, 1f to tone)
-        val line = Stroke(.75.dp.toPx())
-        onDrawBehind {
-            val alpha = reveal().coerceIn(0f, 1f)
-            if (alpha > 0f) {
-                if (!quiet) drawRect(ground, alpha = alpha)
-                lines.forEach { drawPath(it, ink, alpha = alpha, style = line) }
-                if (!quiet) drawRect(glow, alpha = alpha)
-            }
-        }
-    }
 }
 
 /** The disc inside a cover's mark; the halo around it brings the mark to 64dp. */
 private val CoverDisc = 58.dp
 
-/** Every cover mark is the same round disc, set in a halo of the cover's light. */
+/** Every cover mark is the same round disc, set in a ring of glass that catches the cover's light. */
 @Composable
 private fun CoverMark(disc: @Composable () -> Unit) {
-    Box(Modifier.size(64.dp).clearAndSetSemantics { }.background(NaniTheme.colors.onPlaque.copy(alpha = .16f), CircleShape)
-        .padding(3.dp), contentAlignment = Alignment.Center) {
-        disc()
-    }
+    GlassRing(Modifier.size(64.dp).clearAndSetSemantics { }) { disc() }
 }
 
 /** A unit on the cover: what it is, drawn like a monogram, with its type's icon in place of letters. */

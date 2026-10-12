@@ -2,21 +2,16 @@ package com.rentalvalidator.app.presentation.ui.monthly_grid
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,22 +21,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rentalvalidator.app.R
 import com.rentalvalidator.app.domain.model.PaymentStatus
-import com.rentalvalidator.app.domain.model.Tenant
 import com.rentalvalidator.app.presentation.components.*
 import com.rentalvalidator.app.presentation.design.*
 import com.rentalvalidator.app.presentation.navigation.FinanceNavigation
 import com.rentalvalidator.app.presentation.theme.AppSpace
-import com.rentalvalidator.app.presentation.theme.NaniTheme
 import com.rentalvalidator.app.presentation.theme.NaniType
 import com.rentalvalidator.app.util.CurrencyUtils
 import java.time.LocalDate
@@ -49,8 +38,7 @@ import java.time.YearMonth
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MonthlyGridScreen(viewModel: MonthlyGridViewModel = hiltViewModel(), tenantId: String? = null, initialPeriod: String? = null,
-    onBack: (() -> Unit)? = null, onFinanceNavigate: (com.rentalvalidator.app.Screen) -> Unit = {}) {
+fun MonthlyGridScreen(viewModel: MonthlyGridViewModel = hiltViewModel(), onFinanceNavigate: (com.rentalvalidator.app.Screen) -> Unit = {}) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val showSnackbar = rememberAppSnackbar()
     LaunchedEffect(state.error) {
@@ -62,18 +50,13 @@ fun MonthlyGridScreen(viewModel: MonthlyGridViewModel = hiltViewModel(), tenantI
     var showFilters by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
-    LaunchedEffect(initialPeriod) {
-        initialPeriod?.let { value -> runCatching { YearMonth.parse(value) }.getOrNull()?.let { viewModel.changeMonth(it.monthValue, it.year) } }
-    }
     val period = YearMonth.of(state.year, state.month)
-    val scoped = state.items.filter { tenantId == null || it.tenant.id == tenantId }
+    val scoped = state.items
     val visible = scoped.filter { (it.tenant.name.contains(query, true) || it.tenant.unit.contains(query, true)) &&
         (filter == 0 || if (filter == 1) it.payment?.status != PaymentStatus.PAGO else it.payment?.status == PaymentStatus.PAGO) }
-    val scopedTenant = scoped.firstOrNull()?.tenant
     if (showSearch) NaniSearchDialog(query, { query = it }, { showSearch = false })
     Column(Modifier.fillMaxSize()) {
-        if (tenantId != null) NaniHeader(stringResource(R.string.payments), scopedTenant?.name ?: "Inquilino", onBack = onBack)
-        else FinanceNavigation("grid", onFinanceNavigate) {
+        FinanceNavigation("grid", onFinanceNavigate) {
             NaniSearchButton(query) { showSearch = true }
             IconButton(onClick = { showFilters = true }) {
                 BadgedBox(badge = { if (filter != 0) Badge(containerColor = MaterialTheme.colorScheme.primary) }) {
@@ -85,23 +68,15 @@ fun MonthlyGridScreen(viewModel: MonthlyGridViewModel = hiltViewModel(), tenantI
             stickyHeader {
                 Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
                     MonthSwitcher("${getMonthName(state.month)} ${state.year}", viewModel::previousMonth, viewModel::nextMonth) { showPicker = true }
-                    if (tenantId == null) {
-                        MonthTally(scoped, period, Modifier.padding(horizontal = AppSpace.page))
-                        NaniTabs(listOf(stringResource(R.string.all), stringResource(R.string.pending), stringResource(R.string.paid)),
-                            filter, { filter = it }, Modifier.padding(horizontal = AppSpace.page).padding(top = 14.dp, bottom = 12.dp))
-                    } else Spacer(Modifier.height(8.dp))
-                }
-            }
-            if (tenantId != null && scopedTenant != null) item {
-                YearOfPayments(scopedTenant, state.year, state.month, state.yearStatuses[scopedTenant.id].orEmpty()) { month ->
-                    viewModel.changeMonth(month, state.year)
+                    MonthTally(scoped, period, Modifier.padding(horizontal = AppSpace.page))
+                    NaniTabs(listOf(stringResource(R.string.all), stringResource(R.string.pending), stringResource(R.string.paid)),
+                        filter, { filter = it }, Modifier.padding(horizontal = AppSpace.page).padding(top = 14.dp, bottom = 12.dp))
                 }
             }
             if (state.isLoading) item { AppLoadingState("Atualizando pagamentos", "Organizando o período selecionado.") }
             if (!state.isLoading && visible.isEmpty()) item {
                 AppEmptyState(Icons.Rounded.Payments, "Nenhum pagamento encontrado",
-                    if (tenantId != null) "Este inquilino não está mais cadastrado ou não tem aluguel neste período."
-                    else if (scoped.isEmpty()) "Cadastre inquilinos em Locações para acompanhar os aluguéis do mês."
+                    if (scoped.isEmpty()) "Cadastre inquilinos em Locações para acompanhar os aluguéis do mês."
                     else "Nenhum inquilino corresponde à busca ou ao filtro escolhido.")
             }
             itemsIndexed(visible, key = { _, item -> item.tenant.id }) { index, item ->
@@ -175,81 +150,6 @@ internal fun TallyText(label: String, amount: Double, expected: Double, stats: L
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(2.dp))
         RingLegend(stats)
-    }
-}
-
-/**
- * A tenant's year at a glance: twelve months marked paid, under review or open. Tapping a
- * month opens it below. Months before the tenant's registration are left blank.
- */
-@Composable
-private fun YearOfPayments(tenant: Tenant, year: Int, selectedMonth: Int, statuses: Map<Int, PaymentStatus>, onMonth: (Int) -> Unit) {
-    val names = stringArrayResource(R.array.month_names)
-    val today = LocalDate.now()
-    val since = runCatching { YearMonth.from(LocalDate.parse(tenant.dateCreated)) }.getOrNull()
-    val colors = MaterialTheme.colorScheme
-    val nani = NaniTheme.colors
-    Column(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(bottom = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Pagamentos em $year", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            Text("${statuses.count { it.value == PaymentStatus.PAGO }} de 12 pagos", style = MaterialTheme.typography.labelMedium,
-                color = nani.paid.ink)
-        }
-        Spacer(Modifier.height(10.dp))
-        LedgerSheet(contentPadding = PaddingValues(8.dp)) {
-            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                (1..12).chunked(6).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        row.forEach { month ->
-                            val period = YearMonth.of(year, month)
-                            val status = statuses[month]
-                            val beforeTenant = since != null && period.isBefore(since) && status == null
-                            // Only what was recorded is shown; a past month with no record is not claimed as late.
-                            val current = period == YearMonth.from(today)
-                            val state = if (beforeTenant || (status == null && !current)) null
-                                else dueState(status, period, tenant.dueDay, today)
-                            val tone = state?.let { statusTone(it.kind()) }
-                            val active = month == selectedMonth
-                            val description = when (state) {
-                                null -> "sem registro"
-                                DueState.PAID -> "pago"
-                                DueState.REVIEW -> "em análise"
-                                DueState.OVERDUE -> "em atraso"
-                                else -> "a vencer"
-                            }
-                            Column(
-                                Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                                    .background(tone?.fill?.copy(alpha = if (state == DueState.UPCOMING || state == DueState.DUE_TODAY) .55f else 1f)
-                                        ?: colors.surfaceContainerLow)
-                                    .then(if (active) Modifier.border(2.dp, colors.primary, RoundedCornerShape(12.dp)) else Modifier)
-                                    .selectable(active, role = Role.Tab, onClick = { onMonth(month) })
-                                    .semantics(mergeDescendants = true) {
-                                        contentDescription = "${names[month - 1]}: $description"
-                                        if (active) stateDescription = "Exibido abaixo"
-                                    }
-                                    .heightIn(min = 56.dp).padding(vertical = 8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(names[month - 1].take(3), style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold),
-                                    color = if (state == null) colors.onSurfaceVariant else colors.onSurface)
-                                val glyph = when (state) {
-                                    DueState.PAID -> Icons.Rounded.Check
-                                    DueState.REVIEW -> Icons.Rounded.HourglassTop
-                                    DueState.OVERDUE -> Icons.Rounded.PriorityHigh
-                                    else -> null
-                                }
-                                if (glyph != null) Icon(glyph, null, Modifier.size(16.dp), tint = tone!!.ink)
-                                else Box(Modifier.size(16.dp), contentAlignment = Alignment.Center) {
-                                    Box(Modifier.size(width = 10.dp, height = 2.dp).background(colors.outlineVariant))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

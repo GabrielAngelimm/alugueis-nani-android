@@ -129,6 +129,7 @@ internal class TenantFlowState(val start: TenantDraft) {
 
 private fun TenantField.step(): TenantStep = when (this) {
     TenantField.NAME -> TenantStep.NAME
+    TenantField.UNIT -> TenantStep.UNIT
     TenantField.AMOUNT, TenantField.DUE_DAY -> TenantStep.RENT
     TenantField.PHONE, TenantField.CPF -> TenantStep.CONTACT
 }
@@ -151,7 +152,9 @@ internal fun TenantRegistration(
     LaunchedEffect(flow.focus, flow.stepper.current) {
         val field = flow.focus ?: return@LaunchedEffect
         delay(120)
-        if (field != TenantField.DUE_DAY && runCatching { requesters.getValue(field).requestFocus() }.isSuccess) keyboard?.show()
+        // The unit and the due day are picked, not typed, so they raise no keyboard.
+        if (field != TenantField.DUE_DAY && field != TenantField.UNIT &&
+            runCatching { requesters.getValue(field).requestFocus() }.isSuccess) keyboard?.show()
         flow.focus = null
     }
     val advance = { flow.advance(onSave) }
@@ -182,7 +185,7 @@ internal fun TenantRegistration(
         val error = { field: TenantField -> flow.shown[field] }
         when (TenantStep.entries[index]) {
             TenantStep.NAME -> NamePage(flow, requesters.getValue(TenantField.NAME), advance, error(TenantField.NAME))
-            TenantStep.UNIT -> UnitPage(flow, who, units)
+            TenantStep.UNIT -> UnitPage(flow, who, units, error(TenantField.UNIT))
             TenantStep.RENT -> StepPage("Quanto e quando $who paga?") {
                 val amount = requesters.getValue(TenantField.AMOUNT)
                 LaunchedEffect(Unit) { if (flow.draft.amount.isEmpty()) { delay(AppMotion.PageDuration.toLong()); runCatching { amount.requestFocus() } } }
@@ -241,23 +244,20 @@ private fun AnimatedVisibilityScope.NamePage(flow: TenantFlowState, focus: Focus
     }
 }
 
-/**
- * The places a tenant can live in, by name: the registered units in order, then the unit the
- * registration was opened from when it has no record, and Geral.
- */
-private fun unitChoices(units: List<RentalUnit>, chosen: String): List<String> {
-    val registered = units.map { it.name }.sortedBy { it.lowercase() }
-    val names = registered.map { it.lowercase() }
-    return registered + listOf(chosen, RentalUnit.GERAL_NAME).distinct().filter { it.isNotBlank() && it.lowercase() !in names }
-}
-
 @Composable
-private fun AnimatedVisibilityScope.UnitPage(flow: TenantFlowState, who: String, units: List<RentalUnit>) {
+private fun AnimatedVisibilityScope.UnitPage(flow: TenantFlowState, who: String, units: List<RentalUnit>, error: String?) {
     val choices = remember(units) { unitChoices(units, flow.start.unit) }
+    // With a single place to go there is nothing to choose, so it comes chosen.
+    LaunchedEffect(choices) {
+        if (flow.draft.unit.isBlank()) choices.singleOrNull()?.let { only -> flow.edit(TenantField.UNIT) { copy(unit = only) } }
+    }
     StepPage("Em qual unidade $who mora?") {
-        CoverChoices(choices, flow.draft.unit, label = { it }, labelStyle = UnitName,
-            glyph = { name -> units.firstOrNull { it.name.equals(name, ignoreCase = true) }?.type?.glyph() ?: UnitGroupGlyph }) { name ->
-            flow.edit(null) { copy(unit = name) }
+        Column {
+            CoverChoices(choices, flow.draft.unit, label = { it }, labelStyle = UnitName,
+                glyph = { name -> units.firstOrNull { it.name.equals(name, ignoreCase = true) }?.type?.glyph() ?: UnitGroupGlyph }) { name ->
+                flow.edit(TenantField.UNIT) { copy(unit = name) }
+            }
+            error?.let { ControlMessage(it, isError = true) }
         }
         if (units.isEmpty()) FlowHint(Icons.Rounded.Info, "Ainda não há unidades. O inquilino fica em Geral por enquanto.")
     }
@@ -327,7 +327,8 @@ private fun AnimatedVisibilityScope.TenantReview(flow: TenantFlowState, units: L
             ReviewLine(Icons.Rounded.Person, "Nome", listOf(draft.name.trim().ifBlank { "Não informado" }),
                 { flow.open(TenantStep.NAME) }, error(TenantStep.NAME))
             ReviewLine(unit?.type?.glyph() ?: UnitGroupGlyph, "Unidade",
-                listOfNotNull(draft.unit, unit?.location?.ifBlank { null }), { flow.open(TenantStep.UNIT) })
+                listOfNotNull(draft.unit.ifBlank { "Não informada" }, unit?.location?.ifBlank { null }), { flow.open(TenantStep.UNIT) },
+                error(TenantStep.UNIT))
             ReviewLine(Icons.Rounded.Payments, "Aluguel", listOfNotNull(amount?.let { "$it por mês" } ?: "Valor não informado",
                 draft.dueDay?.let { "Vence todo dia $it" }), { flow.open(TenantStep.RENT) }, error(TenantStep.RENT))
             ReviewLine(Icons.Rounded.Phone, "Contato", listOfNotNull(

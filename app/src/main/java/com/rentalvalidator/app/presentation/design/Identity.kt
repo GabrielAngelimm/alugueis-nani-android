@@ -15,14 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -152,21 +153,20 @@ private fun Modifier.matchParentSizeInset(size: Dp) = this.size(size).padding(si
 
 /**
  * A unit shown by what it is (house, apartment, building...) rather than by letters. The tile is
- * the same tinted glass as the navigation lens, light from above and a fine rim, and round like
- * the monograms of the people who live there.
+ * the unit's mark from its cover, the icon in petrol on a pale disc, lit from above with a fine
+ * rim, and round like the monograms of the people who live there.
  */
 @Composable
 fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: Dp = 52.dp) {
-    val colors = MaterialTheme.colorScheme
-    val dark = NaniTheme.colors.isDark
+    val nani = NaniTheme.colors
+    val (fill, ink) = nani.unitMark
     val shape = CircleShape
     Box(modifier.size(size).clearAndSetSemantics { }.clip(shape)
         .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
-            androidx.compose.ui.graphics.lerp(colors.primaryContainer, androidx.compose.ui.graphics.Color.White, if (dark) .06f else .2f),
-            colors.primaryContainer)))
-        .border(1.dp, colors.primary.copy(alpha = if (dark) .26f else .2f), shape),
+            androidx.compose.ui.graphics.lerp(fill, Color.White, if (nani.isDark) .06f else .4f), fill)))
+        .border(1.dp, nani.unitCoverStart.copy(alpha = if (nani.isDark) .34f else .22f), shape),
         contentAlignment = Alignment.Center) {
-        androidx.compose.material3.Icon(icon, null, Modifier.size(size * .48f), tint = colors.onPrimaryContainer)
+        androidx.compose.material3.Icon(icon, null, Modifier.size(size * .48f), tint = ink)
     }
 }
 
@@ -222,18 +222,42 @@ fun ResidentsPile(
     }
 }
 
-/** Who an action sheet is about, repeated at the top so the person never acts on the wrong tenant. */
+/**
+ * Who an action sheet is about, repeated at the top so the person never acts on the wrong tenant:
+ * a small piece of the tenant's sapphire cover ([engravedCover]), with the monogram in its ring
+ * of glass, the name in the ledger's serif and the [detail] under it, as on the tenant's page.
+ */
 @Composable
 fun NaniSheetTenantCard(name: String, detail: String, modifier: Modifier = Modifier) {
-    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Monogram(name, size = 42.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
+    val ink = NaniTheme.colors.onPlaque
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(SheetCardRadius)).engravedCover(name, unit = false)
+        .coverRim(SheetCardRadius).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        GlassRing { Monogram(name, size = 42.dp) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name, style = MaterialTheme.typography.titleLarge, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = ink.copy(alpha = .84f),
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
+}
+
+private val SheetCardRadius = 16.dp
+
+/**
+ * A ring of glass around a mark that sits on a cover: a faint disc of the cover's light with a
+ * clear edge, 3dp wider than the mark on every side. [strength] fades it in, read while drawing,
+ * for a card that becomes a cover.
+ */
+@Composable
+internal fun GlassRing(modifier: Modifier = Modifier, strength: () -> Float = { 1f }, content: @Composable () -> Unit) {
+    val glass = NaniTheme.colors.onPlaque
+    Box(modifier.drawBehind {
+        val alpha = strength().coerceIn(0f, 1f)
+        if (alpha <= 0f) return@drawBehind
+        val edge = 1.dp.toPx()
+        val radius = size.minDimension / 2
+        drawCircle(glass, radius, alpha = .14f * alpha)
+        drawCircle(glass, radius - edge / 2, alpha = .22f * alpha, style = Stroke(edge))
+    }.padding(3.dp), contentAlignment = Alignment.Center) { content() }
 }

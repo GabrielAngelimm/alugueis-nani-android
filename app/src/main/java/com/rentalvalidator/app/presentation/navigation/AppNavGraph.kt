@@ -21,6 +21,7 @@ import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.ui.contracts.ContractsScreen
 import com.rentalvalidator.app.presentation.ui.dashboard.DashboardScreen
 import com.rentalvalidator.app.presentation.ui.monthly_grid.MonthlyGridScreen
+import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsScreen
 import com.rentalvalidator.app.presentation.ui.settings.SettingsScreen
 import com.rentalvalidator.app.presentation.ui.tenants.TenantsScreen
 import com.rentalvalidator.app.presentation.ui.validator.ValidatorScreen
@@ -83,8 +84,7 @@ internal fun AppNavGraph(nav: NavHostController, go: (Screen) -> Unit, modifier:
             enterTransition = { drillIn }, popExitTransition = { drillOut }
         ) { entry ->
             val destination = entry.toRoute<AppRoute.TenantPayments>()
-            MonthlyGridScreen(tenantId = destination.tenantId, initialPeriod = destination.period,
-                onBack = { nav.popBackStack() }, onFinanceNavigate = go)
+            TenantPaymentsScreen(destination.tenantId, destination.period.ifBlank { null }, onBack = { nav.popBackStack() })
         }
         composable<AppRoute.Validator> { ValidatorScreen(onFinanceNavigate = go) }
         composable<AppRoute.Contracts> { ContractsScreen() }

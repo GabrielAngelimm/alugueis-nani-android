@@ -29,6 +29,10 @@ class PaymentRepositoryImpl @Inject constructor(
         return paymentDao.getPaymentsForTenant(tenantId).map { it.toDomain() }
     }
 
+    override fun getTenantPaymentsFlow(tenantId: String): Flow<List<Payment>> {
+        return paymentDao.getPaymentsForTenantFlow(tenantId).map { list -> list.map { it.toDomain() } }
+    }
+
     override suspend fun getPayment(tenantId: String, year: Int, month: Int): Payment? {
         return paymentDao.getPayment(tenantId, year, month)?.toDomain()
     }

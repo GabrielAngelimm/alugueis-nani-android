@@ -12,21 +12,24 @@ import org.junit.Test
 
 class RegistrationDraftsTest {
     private val house = RentalUnit("u1", "Casa Azul", UnitType.HOUSE)
-    private val tenant = TenantDraft(name = "Marina Oliveira", amount = "1250,50", dueDay = 10, phone = "11987654321")
+    private val tenant = TenantDraft(name = "Marina Oliveira", unit = RentalUnit.GERAL_NAME, amount = "1250,50", dueDay = 10,
+        phone = "11987654321")
 
     @Test fun tenantStepsAskOnlyForTheirOwnFields() {
         val empty = TenantDraft()
         assertEquals(setOf(TenantField.NAME), empty.errors(TenantStep.NAME).keys)
-        assertTrue(empty.errors(TenantStep.UNIT).isEmpty())
+        // The unit is a choice the person makes; a blank one is never taken to mean Geral.
+        assertEquals(mapOf(TenantField.UNIT to "Escolha a unidade"), empty.errors(TenantStep.UNIT))
         assertEquals(setOf(TenantField.AMOUNT, TenantField.DUE_DAY), empty.errors(TenantStep.RENT).keys)
         // Only the phone is required on the contact step; WhatsApp name and CPF can wait.
         assertEquals(mapOf(TenantField.PHONE to "Informe o telefone com DDD"), empty.errors(TenantStep.CONTACT))
         assertTrue(empty.errors(TenantStep.STATEMENT).isEmpty())
-        assertEquals(setOf(TenantField.NAME, TenantField.AMOUNT, TenantField.DUE_DAY, TenantField.PHONE),
+        assertEquals(setOf(TenantField.NAME, TenantField.UNIT, TenantField.AMOUNT, TenantField.DUE_DAY, TenantField.PHONE),
             empty.errors(TenantStep.REVIEW).keys)
         assertEquals(TenantStep.NAME, empty.firstInvalidStep())
         assertNull(tenant.firstInvalidStep())
         assertEquals(TenantStep.CONTACT, tenant.copy(phone = "").firstInvalidStep())
+        assertEquals(TenantStep.UNIT, tenant.copy(unit = "").firstInvalidStep())
     }
 
     @Test fun tenantFieldsKeepTheFullFormRules() {
@@ -69,6 +72,8 @@ class RegistrationDraftsTest {
     @Test fun tenantSummariesReadLikeTheAnswers() {
         assertNull(TenantDraft().summary(TenantStep.NAME))
         assertNull(TenantDraft().summary(TenantStep.RENT))
+        assertNull(TenantDraft().summary(TenantStep.UNIT))
+        assertEquals(RentalUnit.GERAL_NAME, tenant.summary(TenantStep.UNIT))
         assertEquals("Marina Oliveira", tenant.summary(TenantStep.NAME))
         assertEquals("${CurrencyUtils.format(1250.5)} · dia 10", tenant.summary(TenantStep.RENT))
         assertEquals("dia 10", tenant.copy(amount = "").summary(TenantStep.RENT))
@@ -77,6 +82,18 @@ class RegistrationDraftsTest {
         assertEquals("Sem banco", tenant.summary(TenantStep.STATEMENT))
         assertEquals("Nubank · 1 outro nome", tenant.copy(bank = "Nubank", aliases = listOf("A")).summary(TenantStep.STATEMENT))
         assertEquals("2 outros nomes", tenant.copy(aliases = listOf("A", "B")).summary(TenantStep.STATEMENT))
+    }
+
+    @Test fun newTenantsAreOfferedOnlyUnitsThatTakeThem() {
+        val loft = RentalUnit("u2", "Loft Butantã", UnitType.APARTMENT, operationalStatus = OperationalStatus.MAINTENANCE)
+        val shed = RentalUnit("u3", "Edícula", UnitType.OTHER, operationalStatus = OperationalStatus.INACTIVE)
+        val units = listOf(shed, loft, house)
+        assertEquals(listOf("Casa Azul", RentalUnit.GERAL_NAME), unitChoices(units, chosen = ""))
+        // Opened from a unit's own page, that unit stays on offer whatever its state.
+        assertEquals(listOf("Casa Azul", "Loft Butantã", RentalUnit.GERAL_NAME), unitChoices(units, chosen = "loft butantã"))
+        // A unit with no record of its own, as older tenants have, is offered by name.
+        assertEquals(listOf("Casa Azul", "Fundos", RentalUnit.GERAL_NAME), unitChoices(units, chosen = "Fundos"))
+        assertEquals(listOf(RentalUnit.GERAL_NAME), unitChoices(emptyList(), chosen = ""))
     }
 
     @Test fun unitStepsAskOnlyForTheirOwnFields() {

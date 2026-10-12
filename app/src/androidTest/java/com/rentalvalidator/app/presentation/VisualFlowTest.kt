@@ -34,6 +34,10 @@ import com.rentalvalidator.app.presentation.ui.dashboard.DashboardScreen
 import com.rentalvalidator.app.presentation.ui.tenants.TenantsScreen
 import com.rentalvalidator.app.presentation.ui.contracts.ContractsScreen
 import com.rentalvalidator.app.presentation.ui.monthly_grid.*
+import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsScreen
+import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsViewModel
+import com.rentalvalidator.app.presentation.ui.tenant_payments.couponTag
+import com.rentalvalidator.app.presentation.design.longLabel
 import com.rentalvalidator.app.presentation.ui.validator.ValidatorScreen
 import com.rentalvalidator.app.presentation.ui.settings.SettingsScreen
 import com.rentalvalidator.app.presentation.viewmodel.*
@@ -48,6 +52,7 @@ import androidx.lifecycle.viewModelScope
 import org.junit.*
 import java.io.File
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 /** Exercises production screens with real repositories and an isolated in-memory Room database.
@@ -61,6 +66,8 @@ class VisualFlowTest {
     private lateinit var units: UnitsViewModel
     private lateinit var contracts: ContractsViewModel
     private lateinit var grid: MonthlyGridViewModel
+    private lateinit var tenantPayments: TenantPaymentsViewModel
+    private lateinit var paymentRepository: PaymentRepositoryImpl
     private lateinit var validator: ValidatorViewModel
     private lateinit var settings: SettingsViewModel
     private lateinit var reminderVm: RentReminderViewModel
@@ -95,6 +102,8 @@ class VisualFlowTest {
         units = UnitsViewModel(ur)
         contracts = ContractsViewModel(tr, com.rentalvalidator.app.data.files.DocumentStorage(context))
         grid = MonthlyGridViewModel(tr, pr)
+        tenantPayments = TenantPaymentsViewModel(tr, pr)
+        paymentRepository = pr
         validator = ValidatorViewModel(ValidatePaymentsUseCase(), tr, pr, prefs, com.rentalvalidator.app.data.importer.StatementReader(context))
         reminderPrefsName = "visual-flow-reminder-" + java.util.UUID.randomUUID()
         val isolatedReminders = object : android.content.ContextWrapper(context) {
@@ -109,7 +118,7 @@ class VisualFlowTest {
     }
 
     @After fun close() {
-        val scopes = listOf(tenants, units, contracts, grid, validator, settings, reminderVm).map { it.viewModelScope }
+        val scopes = listOf(tenants, units, contracts, grid, tenantPayments, validator, settings, reminderVm).map { it.viewModelScope }
         compose.runOnIdle { scopes.forEach { it.cancel() } }
         runBlocking { scopes.forEach { it.coroutineContext[Job]?.join() } }
         runBlocking { listOf("visual-0", "visual-1", "visual-2").forEach { reminderScheduler.remove(it) } }
@@ -138,7 +147,7 @@ class VisualFlowTest {
                                     "tenants" -> TenantsScreen(tenants, units, {}, {}, { route.value = "grid" },
                                         onNavigateToTenantPayments = { scopedTenant.value=it;route.value="tenant-payments" },
                                         reminderViewModel = reminderVm)
-                                    "tenant-payments" -> MonthlyGridScreen(grid,tenantId=scopedTenant.value,onBack={route.value="tenants"})
+                                    "tenant-payments" -> TenantPaymentsScreen(scopedTenant.value!!, onBack = { route.value = "tenants" }, viewModel = tenantPayments)
                                     "grid" -> MonthlyGridScreen(grid){route.value=it.route}
                                     "contracts" -> ContractsScreen(contracts, units)
                                     "validator" -> ValidatorScreen(validator){route.value=it.route}
@@ -392,10 +401,11 @@ class VisualFlowTest {
         compose.onNode(hasText("Marina Oliveira") and hasClickAction()).assertDoesNotExist()
         shot("dashboard-open-rents")
         compose.onNode(hasText("Rafael Mendes") and hasClickAction()).performClick()
-        compose.waitUntil(10_000) { route.value == "tenant-payments" && grid.state.value.items.size == 3 }
+        compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-1" }
         Assert.assertEquals("visual-1", scopedTenant.value)
         compose.onNodeWithText("Ana Beatriz de Albuquerque").assertDoesNotExist()
-        compose.onNodeWithText("Pagamentos em ${java.time.LocalDate.now().year}").assertIsDisplayed()
+        compose.onNodeWithText("Recebido no ano").assertIsDisplayed()
+        compose.onNodeWithText(YearMonth.now().longLabel()).assertIsDisplayed()
         shot("dashboard-open-rent-scoped-payments")
     }
 
@@ -406,18 +416,56 @@ class VisualFlowTest {
         compose.onNodeWithText("Inquilinos").performClick()
         compose.onNodeWithText("Marina Oliveira").performClick()
         compose.onNodeWithText("Pagamentos").performClick()
-        compose.waitUntil(10_000) { route.value == "tenant-payments" && grid.state.value.items.size == 3 }
+        awaitPayments("opening Marina's payments") { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-0" }
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
         compose.onNodeWithText("Ana Beatriz de Albuquerque").assertDoesNotExist()
         shot("tenant-payments-scoped")
-        compose.onNodeWithContentDescription("Mês anterior").performClick()
+        // Sliding the coupon back reaches last month, across the turn of the year when needed.
+        val previous = YearMonth.now().minusMonths(1)
+        compose.onNodeWithText(YearMonth.now().longLabel()).performTouchInput { swipeRight() }
         compose.waitForIdle()
+        compose.onNodeWithText(previous.longLabel()).assertIsDisplayed()
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
-        compose.onAllNodesWithText("Marina Oliveira").onLast().performClick()
-        compose.onNodeWithText("Em análise").performClick()
-        compose.waitUntil(10_000) { grid.state.value.items.single { it.tenant.id=="visual-0" }.payment?.status==PaymentStatus.EM_ANALISE }
-        Assert.assertNull(grid.state.value.items.single { it.tenant.id=="visual-1" }.payment)
+        inCoupon(previous, "Mudar situação").performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNode(hasText("Em análise") and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        awaitPayments("setting $previous under review") { tenantPayments.state.value.statuses[previous] == PaymentStatus.EM_ANALISE }
+        runBlocking {
+            Assert.assertEquals(PaymentStatus.EM_ANALISE, paymentRepository.getPayment("visual-0", previous.year, previous.monthValue)?.status)
+            Assert.assertNull(paymentRepository.getPayment("visual-1", previous.year, previous.monthValue))
+        }
     }
+
+    @Test fun tenantPaymentsMarkAMonthPaidAndUndoIt() {
+        // Opened straight on Rafael's page: reaching it from the list is covered above.
+        scopedTenant.value = "visual-1"
+        route.value = "tenant-payments"
+        launch()
+        awaitPayments("opening Rafael's payments") { tenantPayments.state.value.tenant?.id == "visual-1" }
+        val month = YearMonth.now()
+        inCoupon(month, "Marcar como pago").performSemanticsAction(SemanticsActions.OnClick)
+        awaitPayments("marking $month paid") { tenantPayments.state.value.statuses[month] == PaymentStatus.PAGO }
+        compose.onNode(hasText("Desfazer") and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
+        awaitPayments("undoing $month") { tenantPayments.state.value.statuses[month] == null }
+        runBlocking { Assert.assertNull(paymentRepository.getPayment("visual-1", month.year, month.monthValue)) }
+    }
+
+    /** Waits for the payments page to reach [condition]; a timeout reports where the page stood, on one line. */
+    private fun awaitPayments(step: String, condition: () -> Boolean) {
+        try {
+            compose.waitUntil(10_000, condition)
+        } catch (timeout: ComposeTimeoutException) {
+            val state = tenantPayments.state.value
+            throw AssertionError("$step: route=${route.value} tenant=${state.tenant?.id} loading=${state.isLoading} " +
+                "error=${state.error} statuses=${state.statuses}", timeout)
+        }
+    }
+
+    /**
+     * The button with [text] on [period]'s coupon: the coupons beside it carry the same buttons. Tapped through its
+     * click action, since on a short screen the coupon's buttons sit below the fold, under the bar.
+     */
+    private fun inCoupon(period: YearMonth, text: String) =
+        compose.onNode(hasText(text) and hasAnyAncestor(hasTestTag(couponTag(period))))
 
     @Test fun tenantContactOffersWhatsAppAndDialer() {
         route.value = "tenants"
@@ -850,6 +898,10 @@ class VisualFlowTest {
         press("Avançar")
 
         editorText("Em qual unidade Helena mora?").assertIsDisplayed()
+        // Nothing comes chosen, so a hurried "Avançar" asks for the unit instead of filing Helena under Geral.
+        editor(hasText(RentalUnit.GERAL_NAME) and hasClickAction()).assertIsNotSelected()
+        press("Avançar")
+        editorText("Escolha a unidade").assertExists()
         editor(hasText("Jardim das Oliveiras") and hasClickAction()).performClick()
         editor(hasText("Jardim das Oliveiras") and hasClickAction()).assertIsSelected()
         press("Avançar")

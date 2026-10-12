@@ -92,7 +92,9 @@ import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.components.LocalProminentFields
 import com.rentalvalidator.app.presentation.components.PrimaryButton
 import com.rentalvalidator.app.presentation.components.SecondaryButton
+import com.rentalvalidator.app.presentation.design.GlassRing
 import com.rentalvalidator.app.presentation.design.LedgerRule
+import com.rentalvalidator.app.presentation.design.coverRim
 import com.rentalvalidator.app.presentation.design.engravedCover
 import com.rentalvalidator.app.presentation.theme.AppSize
 import com.rentalvalidator.app.presentation.theme.AppSpace
@@ -182,10 +184,9 @@ private val PreviewName = TextStyle(fontFamily = NaniSerif, fontWeight = FontWei
 /**
  * The record taking shape above the questions, the way a payment app draws the card being added:
  * a blank card outlined in pencil, with the [placeholder] and [linePlaceholder] in grey, until the
- * record has a [name]; then a calm card on the page, faintly engraved from [seed] (ruled courses
- * for a [unit]), filling in answer by answer in [line], on a second line when it needs one. [mark]
- * draws the disc on the left. The full cover waits for the review, so the questions stay the
- * loudest thing on screen.
+ * record has a [name]; then it becomes the record's cover (sapphire for a person, petrol blue for
+ * a [unit]), the same light as its page, with [mark] in a ring of glass, filling in answer by
+ * answer in [line], on a second line when it needs one. [seed] names the record for its cover.
  */
 @Composable
 internal fun FlowPreview(
@@ -198,35 +199,35 @@ internal fun FlowPreview(
     mark: @Composable () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
+    val ink = NaniTheme.colors.onPlaque
     val named by animateFloatAsState(if (name.isNotBlank()) 1f else 0f, tween(AppMotion.PageDuration, easing = AppMotion.Settle),
         label = "preview named")
     val shape = RoundedCornerShape(AppSize.sheetRadius)
     val pencil = colors.outline
-    val rule = colors.outlineVariant
     Row(Modifier.fillMaxWidth().padding(horizontal = AppSpace.page).padding(bottom = 12.dp)
         .clip(shape).background(colors.surface)
-        .engravedCover(seed, unit, reveal = { named }, quiet = true)
+        .engravedCover(seed, unit, reveal = { named })
+        .coverRim(AppSize.sheetRadius, reveal = { named })
         .drawWithContent {
             drawContent()
-            // Pencilled while blank, a fine rule once the record has a name.
+            // Pencilled while blank; once named, the cover's own edge takes over.
+            if (named >= 1f) return@drawWithContent
             val stroke = 1.dp.toPx()
-            val corner = CornerRadius(AppSize.sheetRadius.toPx())
-            val inset = Offset(stroke / 2, stroke / 2)
-            val box = Size(size.width - stroke, size.height - stroke)
-            if (named < 1f) drawRoundRect(pencil, inset, box, corner, alpha = .55f * (1f - named),
+            drawRoundRect(pencil, Offset(stroke / 2, stroke / 2), Size(size.width - stroke, size.height - stroke),
+                CornerRadius(AppSize.sheetRadius.toPx()), alpha = .55f * (1f - named),
                 style = Stroke(stroke * 1.2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))))
-            if (named > 0f) drawRoundRect(rule, inset, box, corner, alpha = named, style = Stroke(stroke))
         }
         .semantics(mergeDescendants = true) { }
         .heightIn(min = 76.dp)
         .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        mark()
+        GlassRing(strength = { named }) { mark() }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name.trim().ifBlank { placeholder }, style = PreviewName,
-                color = lerp(colors.onSurfaceVariant, colors.onSurface, named), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                color = lerp(colors.onSurfaceVariant, ink, named), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(line ?: linePlaceholder, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                color = if (line == null) colors.outline else colors.onSurfaceVariant)
+                color = lerp(if (line == null) colors.outline else colors.onSurfaceVariant,
+                    ink.copy(alpha = if (line == null) .6f else .84f), named))
         }
     }
 }
