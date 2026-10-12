@@ -36,6 +36,7 @@ import com.rentalvalidator.app.presentation.ui.contracts.ContractsScreen
 import com.rentalvalidator.app.presentation.ui.monthly_grid.*
 import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsScreen
 import com.rentalvalidator.app.presentation.ui.tenant_payments.TenantPaymentsViewModel
+import com.rentalvalidator.app.presentation.ui.tenant_payments.couponTag
 import com.rentalvalidator.app.presentation.design.longLabel
 import com.rentalvalidator.app.presentation.ui.validator.ValidatorScreen
 import com.rentalvalidator.app.presentation.ui.settings.SettingsScreen
@@ -425,7 +426,7 @@ class VisualFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText(previous.longLabel()).assertIsDisplayed()
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
-        onScreen("Mudar situação").performSemanticsAction(SemanticsActions.OnClick)
+        inCoupon(previous, "Mudar situação").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNode(hasText("Em análise") and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         awaitPayments("setting $previous under review") { tenantPayments.state.value.statuses[previous] == PaymentStatus.EM_ANALISE }
         runBlocking {
@@ -441,7 +442,7 @@ class VisualFlowTest {
         launch()
         awaitPayments("opening Rafael's payments") { tenantPayments.state.value.tenant?.id == "visual-1" }
         val month = YearMonth.now()
-        onScreen("Marcar como pago").performSemanticsAction(SemanticsActions.OnClick)
+        inCoupon(month, "Marcar como pago").performSemanticsAction(SemanticsActions.OnClick)
         awaitPayments("marking $month paid") { tenantPayments.state.value.statuses[month] == PaymentStatus.PAGO }
         compose.onNode(hasText("Desfazer") and hasClickAction()).performSemanticsAction(SemanticsActions.OnClick)
         awaitPayments("undoing $month") { tenantPayments.state.value.statuses[month] == null }
@@ -460,16 +461,11 @@ class VisualFlowTest {
     }
 
     /**
-     * The one node with [text] that lies wholly on screen: the coupons beside the current one carry the same buttons.
-     * Tap it through its click action: on a short screen the coupon's buttons sit below the fold, under the bar.
+     * The button with [text] on [period]'s coupon: the coupons beside it carry the same buttons. Tapped through its
+     * click action, since on a short screen the coupon's buttons sit below the fold, under the bar.
      */
-    private fun onScreen(text: String): SemanticsNodeInteraction {
-        val width = compose.onRoot().fetchSemanticsNode().size.width
-        val nodes = compose.onAllNodesWithText(text).fetchSemanticsNodes()
-        val index = nodes.indexOfFirst { it.boundsInRoot.left >= 0f && it.boundsInRoot.right <= width }
-        Assert.assertTrue("No \"$text\" on screen", index >= 0)
-        return compose.onAllNodesWithText(text)[index]
-    }
+    private fun inCoupon(period: YearMonth, text: String) =
+        compose.onNode(hasText(text) and hasAnyAncestor(hasTestTag(couponTag(period))))
 
     @Test fun tenantContactOffersWhatsAppAndDialer() {
         route.value = "tenants"

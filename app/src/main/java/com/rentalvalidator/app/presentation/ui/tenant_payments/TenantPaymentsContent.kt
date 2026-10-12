@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.rentalvalidator.app.domain.model.PaymentStatus
 import com.rentalvalidator.app.domain.model.Tenant
@@ -100,7 +101,7 @@ fun TenantPaymentsContent(
                 key = { range.monthAt(it).toString() }) { page ->
                 val period = range.monthAt(page)
                 val state = stateOf(period)
-                MonthSlip(period, state, tenant.amount, tenant.dueDay, today, firstName,
+                MonthSlip(period, state, tenant.amount, tenant.dueDay, today, firstName, modifier = Modifier.testTag(couponTag(period)),
                     onMarkPaid = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onMarkPaid(period) },
                     onChangeStatus = { onChangeStatus(period) },
                     onMessage = onMessage?.let { message -> { message(period, state) } },
@@ -113,6 +114,9 @@ fun TenantPaymentsContent(
         }
     }
 }
+
+/** Names a month's coupon for tests: the coupons beside the shown one carry the same buttons. */
+fun couponTag(period: YearMonth) = "coupon:$period"
 
 /** Scrolls the month row so tab [index] sits in the middle, or as near as the row's ends allow. */
 private suspend fun LazyListState.centerOn(index: Int, animate: Boolean) {
