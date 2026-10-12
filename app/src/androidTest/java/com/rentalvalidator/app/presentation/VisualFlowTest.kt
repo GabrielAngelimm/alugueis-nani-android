@@ -425,7 +425,7 @@ class VisualFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText(previous.longLabel()).assertIsDisplayed()
         compose.onNodeWithText("Rafael Mendes").assertDoesNotExist()
-        onScreen("Mudar situação").performClick()
+        onScreen("Mudar situação").performSemanticsAction(SemanticsActions.OnClick)
         compose.onNodeWithText("Em análise").performClick()
         compose.waitUntil(10_000) { tenantPayments.state.value.statuses[previous] == PaymentStatus.EM_ANALISE }
         runBlocking {
@@ -443,14 +443,17 @@ class VisualFlowTest {
         compose.onNodeWithText("Pagamentos").performClick()
         compose.waitUntil(10_000) { route.value == "tenant-payments" && tenantPayments.state.value.tenant?.id == "visual-1" }
         val month = YearMonth.now()
-        onScreen("Marcar como pago").performClick()
+        onScreen("Marcar como pago").performSemanticsAction(SemanticsActions.OnClick)
         compose.waitUntil(10_000) { tenantPayments.state.value.statuses[month] == PaymentStatus.PAGO }
         compose.onNodeWithText("Desfazer").performClick()
         compose.waitUntil(10_000) { tenantPayments.state.value.statuses[month] == null }
         runBlocking { Assert.assertNull(paymentRepository.getPayment("visual-1", month.year, month.monthValue)) }
     }
 
-    /** The one node with [text] that lies wholly on screen: the coupons beside the current one carry the same buttons. */
+    /**
+     * The one node with [text] that lies wholly on screen: the coupons beside the current one carry the same buttons.
+     * Tap it through its click action: on a short screen the coupon's buttons sit below the fold, under the bar.
+     */
     private fun onScreen(text: String): SemanticsNodeInteraction {
         val width = compose.onRoot().fetchSemanticsNode().size.width
         val nodes = compose.onAllNodesWithText(text).fetchSemanticsNodes()
