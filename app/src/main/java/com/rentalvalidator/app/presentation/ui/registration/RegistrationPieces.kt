@@ -86,6 +86,7 @@ import com.rentalvalidator.app.presentation.components.AppMotion
 import com.rentalvalidator.app.presentation.design.BankCoin
 import com.rentalvalidator.app.presentation.design.LedgerRule
 import com.rentalvalidator.app.presentation.design.bankMarkOf
+import com.rentalvalidator.app.presentation.design.coverRim
 import com.rentalvalidator.app.presentation.design.engravedCover
 import com.rentalvalidator.app.presentation.design.rememberWordFitScale
 import com.rentalvalidator.app.presentation.design.scaled
@@ -159,9 +160,9 @@ private fun DayCell(day: Int, selected: Boolean, onClick: () -> Unit, modifier: 
 /**
  * Choices that each stand for a place, as compact cards two to a row (three on a wide screen): the
  * kinds of property, or the units a tenant can live in. Each card carries its mark beside its name,
- * small enough for a whole set to fit on one screen. At rest a card is a pale wash of steel; the
- * chosen one fills in as a small unit cover, the ruled steel blue of the page the unit opens on, so
- * the answer already looks like what it makes. [labelStyle] sets the names: a kind reads as a
+ * small enough for a whole set to fit on one screen. At rest a card is a pale wash of petrol blue;
+ * the chosen one fills in as a small unit cover, the lit material of the page the unit opens on,
+ * so the answer already looks like what it makes. [labelStyle] sets the names: a kind reads as a
  * label, a unit's name in the ledger's hand.
  */
 @Composable
@@ -207,7 +208,7 @@ private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, 
         label = "cover chosen")
     val badge by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = .55f, stiffness = Spring.StiffnessMediumLow),
         label = "cover badge")
-    // At rest the card is already tinted with the steel it turns into, so choosing it reads as the color filling in;
+    // At rest the card is already tinted with the petrol it turns into, so choosing it reads as the color filling in;
     // the tint deepens a little toward the foot, like light falling on a card from above.
     val wash = if (nani.isDark) .16f else .07f
     val rest = Brush.verticalGradient(listOf(lerp(colors.surface, nani.unitCoverStart, wash * .6f),
@@ -221,6 +222,7 @@ private fun CoverCard(label: String, glyph: ImageVector, labelStyle: TextStyle, 
         .clip(shape)
         .background(rest)
         .engravedCover(label, unit = true, reveal = { cover })
+        .coverRim(AppSize.controlRadius + 2.dp, reveal = { cover })
         .border(1.dp, nani.unitCoverStart.copy(alpha = (if (nani.isDark) .3f else .16f) * (1f - cover)), shape)
         .selectable(selected, interaction, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
         .padding(CoverPadding),
@@ -249,7 +251,7 @@ private val CoverMarkSize = 36.dp
 private val CoverGap = 10.dp
 
 /**
- * A place's mark, built like the unit's mark on its cover: the icon on a disc that turns steel and
+ * A place's mark, built like the unit's mark on its cover: the icon on a disc that turns petrol and
  * is ringed in light once chosen. [rest] is the disc before that; [check] springs a small check
  * onto its corner.
  */

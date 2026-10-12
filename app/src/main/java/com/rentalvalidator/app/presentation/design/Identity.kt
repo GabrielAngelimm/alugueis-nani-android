@@ -152,21 +152,20 @@ private fun Modifier.matchParentSizeInset(size: Dp) = this.size(size).padding(si
 
 /**
  * A unit shown by what it is (house, apartment, building...) rather than by letters. The tile is
- * the same tinted glass as the navigation lens, light from above and a fine rim, and round like
- * the monograms of the people who live there.
+ * the unit's mark from its cover, the icon in petrol on a pale disc, lit from above with a fine
+ * rim, and round like the monograms of the people who live there.
  */
 @Composable
 fun UnitTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: Dp = 52.dp) {
-    val colors = MaterialTheme.colorScheme
-    val dark = NaniTheme.colors.isDark
+    val nani = NaniTheme.colors
+    val (fill, ink) = nani.unitMark
     val shape = CircleShape
     Box(modifier.size(size).clearAndSetSemantics { }.clip(shape)
         .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(
-            androidx.compose.ui.graphics.lerp(colors.primaryContainer, androidx.compose.ui.graphics.Color.White, if (dark) .06f else .2f),
-            colors.primaryContainer)))
-        .border(1.dp, colors.primary.copy(alpha = if (dark) .26f else .2f), shape),
+            androidx.compose.ui.graphics.lerp(fill, Color.White, if (nani.isDark) .06f else .4f), fill)))
+        .border(1.dp, nani.unitCoverStart.copy(alpha = if (nani.isDark) .34f else .22f), shape),
         contentAlignment = Alignment.Center) {
-        androidx.compose.material3.Icon(icon, null, Modifier.size(size * .48f), tint = colors.onPrimaryContainer)
+        androidx.compose.material3.Icon(icon, null, Modifier.size(size * .48f), tint = ink)
     }
 }
 

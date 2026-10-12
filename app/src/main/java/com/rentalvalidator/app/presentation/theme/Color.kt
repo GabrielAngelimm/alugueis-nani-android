@@ -56,12 +56,10 @@ data class NaniColors(
     val neutral: StatusTone,
     val plaque: Color,
     val onPlaque: Color,
-    /** The cover of a tenant's page, like a savings passbook: lit corner to deep corner. Text on it uses [onPlaque]. */
-    val coverStart: Color,
-    val coverEnd: Color,
-    /** The cover of a unit's page: the same passbook a shade toward steel, so a place never reads as a person. */
-    val unitCoverStart: Color,
-    val unitCoverEnd: Color,
+    /** The cover of a tenant's page: sapphire, lit from the upper right. Text on it uses [onPlaque]. */
+    val tenantCover: CoverTone,
+    /** The cover of a unit's page: the same material in petrol blue, so a place never reads as a person. */
+    val unitCover: CoverTone,
     /** A unit's mark on its cover, built like a monogram: [Pair.first] fills the disc, [Pair.second] draws the icon. */
     val unitMark: Pair<Color, Color>,
     /** Fill of the single strongest action. At night it stays saturated so it never reads as disabled. */
@@ -71,7 +69,21 @@ data class NaniColors(
     val track: Color,
     val monograms: List<Pair<Color, Color>>,
     val isDark: Boolean
-)
+) {
+    /** The lit and the deep corner of each cover, for tints and shadows that follow it. */
+    val coverStart: Color get() = tenantCover.lit
+    val coverEnd: Color get() = tenantCover.deep
+    val unitCoverStart: Color get() = unitCover.lit
+    val unitCoverEnd: Color get() = unitCover.deep
+}
+
+/**
+ * A cover's material: the ground runs from [lit] through [mid] to [deep] across the diagonal, a
+ * soft [glow] of light falls from the upper-right corner and a [bounce] of a neighbouring hue
+ * rises from the lower left, for depth. [glow] and [bounce] carry their own strength as alpha.
+ */
+@Immutable
+data class CoverTone(val lit: Color, val mid: Color, val deep: Color, val glow: Color, val bounce: Color)
 
 /** A status mark: [ink] for text and strokes, [fill] for its background, [onFill] for text on that fill. */
 @Immutable
@@ -85,11 +97,11 @@ internal val LightNaniColors = NaniColors(
     neutral = StatusTone(InkMuted, PaperDeep, Ink),
     plaque = Color(0xFF233886),
     onPlaque = Color(0xFFF4F6FF),
-    coverStart = Color(0xFF4864C2),
-    coverEnd = Color(0xFF2B4290),
-    unitCoverStart = Color(0xFF4468A0),
-    unitCoverEnd = Color(0xFF26446F),
-    unitMark = Color(0xFFDCE6F3) to Color(0xFF26446F),
+    tenantCover = CoverTone(Color(0xFF5B74DA), Color(0xFF3B54B6), Color(0xFF243A8C),
+        glow = Color(0x6B9DB0F5), bounce = Color(0x4D5E3FB8)),
+    unitCover = CoverTone(Color(0xFF3F8597), Color(0xFF2A6375), Color(0xFF173F4F),
+        glow = Color(0x6186C3CF), bounce = Color(0x4D1F4C7E)),
+    unitMark = Color(0xFFDDEEF1) to Color(0xFF173F4F),
     action = Pen,
     onAction = Color.White,
     rule = Rule,
@@ -113,11 +125,11 @@ internal val DarkNaniColors = NaniColors(
     neutral = StatusTone(InkMutedNight, SheetNightHigh, InkNight),
     plaque = Color(0xFF3A50A8),
     onPlaque = Color(0xFFF4F6FF),
-    coverStart = Color(0xFF3A50AE),
-    coverEnd = Color(0xFF1C2A66),
-    unitCoverStart = Color(0xFF34568A),
-    unitCoverEnd = Color(0xFF172C4E),
-    unitMark = Color(0xFF1D2E4A) to Color(0xFFC4D5EE),
+    tenantCover = CoverTone(Color(0xFF4660C8), Color(0xFF2D429C), Color(0xFF172462),
+        glow = Color(0x4D8196EA), bounce = Color(0x5752309E)),
+    unitCover = CoverTone(Color(0xFF326E80), Color(0xFF1F5263), Color(0xFF0F2E3B),
+        glow = Color(0x476FAFBD), bounce = Color(0x57163E6A)),
+    unitMark = Color(0xFF0C2530) to Color(0xFFA9CFD7),
     action = Color(0xFF4460D6),
     onAction = Color.White,
     rule = RuleNight,
